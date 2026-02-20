@@ -10,7 +10,66 @@ from streamlit_gsheets import GSheetsConnection # <--- Nova biblioteca aqui!
 # ==========================================
 st.set_page_config(page_title="Dashboard Lives Semanais - Grupo Rugido", layout="wide")
 
-# ... (Todo aquele código de CSS/Estilo do Tema Escuro continua igual aqui) ...
+# Tema Escuro e CSS Customizado
+st.markdown("""
+    <style>
+    .stApp {
+        background-color: #0d0d1a;
+        color: white;
+    }
+    .kpi-card {
+        background-color: #151528;
+        border: 1px solid #222;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+    }
+    .kpi-title {
+        font-weight: 300;
+        font-size: 14px;
+        color: #aaa;
+        margin-bottom: 5px;
+    }
+    .kpi-value {
+        font-weight: 800;
+        font-size: 24px;
+    }
+    .top-bar-red { border-top: 2px solid #ef4444; }
+    .top-bar-blue { border-top: 2px solid #3b82f6; }
+    .top-bar-orange { border-top: 2px solid #f97316; }
+    .top-bar-green { border-top: 2px solid #22c55e; }
+    .top-bar-yellow { border-top: 2px solid #eab308; }
+    .top-bar-pink { border-top: 2px solid #ec4899; }
+    
+    .live-card {
+        background-color: #151528;
+        border: 1px solid #222;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .group-card {
+        background-color: #1a1a33;
+        border: 1px solid #333;
+        border-radius: 6px;
+        padding: 10px;
+        text-align: center;
+    }
+    .badge-ativo {
+        background-color: #22c55e;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: bold;
+    }
+    .header-title {
+        color: #22c55e;
+        font-weight: 800;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # ==========================================
 # CARREGAMENTO E PREPARAÇÃO DOS DADOS
@@ -40,8 +99,6 @@ def load_data():
     return df_semanal, df_lives
 
 df_semanal, df_lives = load_data()
-
-# ... (O resto do código daqui pra baixo continua EXATAMENTE igual) ...
 
 # ==========================================
 # NAVEGAÇÃO E CONTROLE DE ESTADO
