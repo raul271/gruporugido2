@@ -1,379 +1,538 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
-import numpy as np
-from streamlit_gsheets import GSheetsConnection
+from plotly.subplots import make_subplots
+import requests
+from io import StringIO
 
-# ==========================================
-# CONFIGURAÇÃO DA PÁGINA E ESTILO VISUAL
-# ==========================================
-st.set_page_config(page_title="Dashboard Lives Semanais - Grupo Rugido", layout="wide")
+# ── CONFIG ─────────────────────────────────────────────
+st.set_page_config(
+    page_title="Dashboard Lives Semanais — Grupo Rugido",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
-# Tema Escuro e CSS Customizado
+# ── TEMA ESCURO CUSTOMIZADO ────────────────────────────
 st.markdown("""
-    <style>
-    .stApp {
-        background-color: #0d0d1a;
-        color: white;
-    }
-    .kpi-card {
-        background-color: #151528;
-        border: 1px solid #222;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 15px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
-    }
-    .kpi-title {
-        font-weight: 300;
-        font-size: 14px;
-        color: #aaa;
-        margin-bottom: 5px;
-    }
-    .kpi-value {
-        font-weight: 800;
-        font-size: 24px;
-    }
-    .top-bar-red { border-top: 2px solid #ef4444; }
-    .top-bar-blue { border-top: 2px solid #3b82f6; }
-    .top-bar-orange { border-top: 2px solid #f97316; }
-    .top-bar-green { border-top: 2px solid #22c55e; }
-    .top-bar-yellow { border-top: 2px solid #eab308; }
-    .top-bar-pink { border-top: 2px solid #ec4899; }
-    
-    .live-card {
-        background-color: #151528;
-        border: 1px solid #222;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-    .group-card {
-        background-color: #1a1a33;
-        border: 1px solid #333;
-        border-radius: 6px;
-        padding: 10px;
-        text-align: center;
-    }
-    .badge-ativo {
-        background-color: #22c55e;
-        color: white;
-        padding: 3px 8px;
-        border-radius: 4px;
-        font-size: 10px;
-        font-weight: bold;
-    }
-    .header-title {
-        color: #22c55e;
-        font-weight: 800;
-    }
-    </style>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+
+/* Reset geral */
+.stApp { background-color: #0d0d1a; font-family: 'DM Sans', sans-serif; }
+header, [data-testid="stHeader"] { background-color: #0d0d1a !important; }
+[data-testid="stSidebar"] { background-color: #151528; }
+
+/* Cards de KPI */
+.kpi-card {
+    background: #151528; border-radius: 12px; padding: 16px 14px;
+    border: 1px solid #222; position: relative; overflow: hidden; text-align: left;
+}
+.kpi-card .bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.kpi-card .label { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.kpi-card .value { font-size: 22px; font-weight: 800; margin-bottom: 2px; }
+.kpi-card .sub { font-size: 11px; color: #555; }
+
+/* Marca */
+.brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.brand-dot { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e88; }
+.brand-text { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #22c55e; font-weight: 600; }
+.main-title { font-size: 28px; font-weight: 800; color: #fff; letter-spacing: -0.5px; margin: 4px 0 6px; }
+.sub-title { font-size: 13px; color: #888; }
+
+/* Live card */
+.live-card { background: #151528; border-radius: 12px; border: 1px solid #222; overflow: hidden; margin-bottom: 14px; }
+.live-header { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.live-body { padding: 16px; }
+
+/* Grupo card */
+.grupo-card { border-radius: 8px; padding: 10px 12px; }
+.grupo-card.ativo { background: rgba(34,197,94,0.04); border: 1px solid rgba(34,197,94,0.15); }
+.grupo-card.passivo { background: #0a0a18; border: 1px solid #1a1a28; }
+
+/* Week card */
+.week-card {
+    background: #151528; border-radius: 12px; border: 1px solid #222;
+    padding: 14px 18px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.2s;
+}
+.week-card:hover { border-color: #8b5cf6 !important; }
+
+/* Metric bar */
+.metric-bar { background: #151528; border-radius: 12px; border: 1px solid #222; padding: 14px 20px; display: flex; gap: 28px; flex-wrap: wrap; }
+.metric-item .m-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+.metric-item .m-value { font-size: 16px; font-weight: 800; }
+
+/* Botões do tab */
+div[data-testid="stHorizontalBlock"] button {
+    background: #151528 !important; color: #888 !important;
+    border: 1px solid #222 !important; border-radius: 8px !important;
+    font-weight: 700 !important; font-size: 13px !important;
+}
+div[data-testid="stHorizontalBlock"] button:hover {
+    border-color: #8b5cf6 !important; color: #8b5cf6 !important;
+}
+
+/* Esconder elementos padrão do Streamlit */
+#MainMenu, footer, [data-testid="stDecoration"] { display: none !important; }
+.block-container { padding-top: 2rem !important; max-width: 960px !important; }
+
+/* Plotly background fix */
+.js-plotly-plot .plotly .main-svg { background: transparent !important; }
+</style>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# CARREGAMENTO E PREPARAÇÃO DOS DADOS
-# ==========================================
-@st.cache_data(ttl=600)
-def load_data():
-    # Cria a conexão com o Google Sheets
-    conn = st.connection("gsheets", type=GSheetsConnection)
-    
-    # O SEU LINK DA PLANILHA ESTÁ AQUI:
-    url_planilha = "https://docs.google.com/spreadsheets/d/17WFm9kfssn7I0YhMIaZ3_6bEBHVVdJlD/edit?usp=sharing&ouid=104007573414009605852&rtpof=true&sd=true"
-    
-    # Faz a leitura das abas
-    df_semanal = conn.read(spreadsheet=url_planilha, worksheet="Semanal")
-    df_lives = conn.read(spreadsheet=url_planilha, worksheet="Lives e Grupos")
+# ── HELPERS ────────────────────────────────────────────
+MAX_GP = 8
 
-    # Limpa linhas vazias caso a planilha tenha linhas em branco no final
-    df_semanal = df_semanal.dropna(subset=['Semana'])
-    df_lives = df_lives.dropna(subset=['Semana', 'Tipo'])
+def fmt(v):
+    return f"{v:,.0f}".replace(",", ".")
 
-    # Tratamento aba Semanal
-    df_semanal['CPL (R$)'] = df_semanal['Investimento (R$)'] / df_semanal['Leads Ads']
-    df_semanal['Taxa Entrada (%)'] = (df_semanal['Leads Entrada'] / df_semanal['Leads Ads']) * 100
-    df_semanal['Taxa Saída (%)'] = (df_semanal['Leads Saída'] / df_semanal['Leads Entrada']) * 100
+def fmtR(v):
+    return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-    return df_semanal, df_lives
+def pct(v):
+    return f"{v:.1f}%"
 
-# Tenta carregar os dados. Se der erro de aba não encontrada, ele avisa na tela.
-try:
-    df_semanal, df_lives = load_data()
-except Exception as e:
-    st.error(f"Erro ao ler a planilha. Verifique se as abas se chamam exatamente 'Semanal' e 'Lives e Grupos'. Detalhe do erro: {e}")
-    st.stop()
+def kpi_html(label, value, color, sub=""):
+    sub_html = f'<div class="sub">{sub}</div>' if sub else ''
+    return f'''
+    <div class="kpi-card">
+        <div class="bar" style="background:{color}"></div>
+        <div class="label">{label}</div>
+        <div class="value" style="color:{color}">{value}</div>
+        {sub_html}
+    </div>'''
 
-# ==========================================
-# NAVEGAÇÃO E CONTROLE DE ESTADO
-# ==========================================
-if 'view' not in st.session_state:
-    st.session_state.view = 'overview'
-if 'selected_week' not in st.session_state:
-    st.session_state.selected_week = None
+def parse_csv_from_url(url):
+    try:
+        r = requests.get(url, timeout=15)
+        r.raise_for_status()
+        return pd.read_csv(StringIO(r.text))
+    except:
+        return None
 
-def go_to_overview():
-    st.session_state.view = 'overview'
-    st.session_state.selected_week = None
+def load_data(sheet_id):
+    base = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
 
-def go_to_week(week_num):
-    st.session_state.view = 'detail'
-    st.session_state.selected_week = week_num
+    # Semanal
+    sem_df = parse_csv_from_url(f"{base}&sheet=Semanal")
+    if sem_df is None:
+        return None, None
 
-# Cabeçalho
-st.markdown("<h2 class='header-title'>Grupo Rugido <span style='color: white; font-weight: 300;'>| Dashboard Lives Semanais</span></h2>", unsafe_allow_html=True)
-st.markdown("---")
+    # Lives e Grupos — skip row 1 (GP labels)
+    lives_url = f"{base}&sheet=Lives+e+Grupos"
+    try:
+        r = requests.get(lives_url, timeout=15)
+        r.raise_for_status()
+        lines = r.text.strip().split("\n")
+        # Row 0 = GP labels (from gviz perspective), Row 1 = actual headers
+        clean = "\n".join([lines[0]] + lines[2:])
+        liv_df = pd.read_csv(StringIO(clean))
+    except:
+        liv_df = None
 
-# Botões de Navegação Superiores
-semanas_disponiveis = sorted(df_semanal['Semana'].unique())
-cols_nav = st.columns([2] + [1] * len(semanas_disponiveis))
+    return sem_df, liv_df
 
-if cols_nav[0].button("🏠 Visão Geral", use_container_width=True):
-    go_to_overview()
+def process_semanal(df):
+    records = []
+    for _, row in df.iterrows():
+        s = int(row.get("Semana", 0))
+        if s <= 0:
+            continue
+        inv = float(row.get("Investimento (R$)", 0) or 0)
+        la = float(row.get("Leads Ads", 0) or 0)
+        le = float(row.get("Leads Entrada", 0) or 0)
+        ls_ = float(row.get("Leads Saida", row.get("Leads Saída", 0)) or 0)
+        vt = float(row.get("Vendas Total", 0) or 0)
+        rec = float(row.get("Receita (R$)", 0) or 0)
+        records.append(dict(semana=s, investimento=inv, leadsAds=la, leadsEntrada=le, leadsSaida=ls_, vendas=vt, receita=rec))
+    return records
 
-for idx, week in enumerate(semanas_disponiveis):
-    if cols_nav[idx+1].button(f"S{int(week)}", use_container_width=True):
-        go_to_week(week)
+def process_lives(df):
+    lives = []
+    if df is None:
+        return lives
+    for _, row in df.iterrows():
+        semana = int(row.get("Semana", 0) or 0)
+        tipo = str(row.get("Tipo", "")).strip().upper()
+        label = str(row.get("Label", "")).strip()
+        if not semana or not tipo or not label or tipo == "NAN":
+            continue
+        ga = str(row.get("Grupo Ativo", "")).strip().upper()
+        grupos = []
+        for g in range(1, MAX_GP + 1):
+            leads = float(row.get(f"Leads GP{g}", 0) or 0)
+            cliques = float(row.get(f"Cliques GP{g}", 0) or 0)
+            ctr = float(row.get(f"CTR GP{g}", 0) or 0)
+            if leads > 0 or cliques > 0:
+                grupos.append(dict(nome=f"GP{g}", leads=leads, cliques=cliques, ctr=ctr, ativo=f"GP{g}" == ga))
+        lives.append(dict(
+            semana=semana, tipo=tipo, label=label,
+            data=str(row.get("Data", "")).strip(),
+            cliquesTotal=float(row.get("Cliques Total", 0) or 0),
+            pico=float(row.get("Pico", 0) or 0),
+            vendas=float(row.get("Vendas", 0) or 0),
+            grupos=grupos,
+        ))
+    return lives
+
+def calc_stats(grupos):
+    at = [g for g in grupos if g["ativo"]]
+    pa = [g for g in grupos if not g["ativo"]]
+    ac = sum(g["cliques"] for g in at)
+    pc = sum(g["cliques"] for g in pa)
+    al = sum(g["leads"] for g in at)
+    pl = sum(g["leads"] for g in pa)
+    return dict(
+        ac=ac, pc=pc,
+        aCTR=round((ac / al) * 100, 1) if al > 0 else 0,
+        pCTR=round((pc / pl) * 100, 1) if pl > 0 else 0,
+        ga=at[0]["nome"] if at else "-"
+    )
+
+# ── PLOTLY LAYOUT ──────────────────────────────────────
+PLOT_LAYOUT = dict(
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="#151528",
+    font=dict(family="DM Sans", color="#aaa", size=12),
+    margin=dict(l=50, r=20, t=30, b=40),
+    xaxis=dict(gridcolor="#222", zerolinecolor="#222"),
+    yaxis=dict(gridcolor="#222", zerolinecolor="#222"),
+    legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=11)),
+    hoverlabel=dict(bgcolor="#1a1a2e", bordercolor="#333", font=dict(family="DM Sans", size=13)),
+)
+
+# ── SESSION STATE ──────────────────────────────────────
+if "page" not in st.session_state:
+    st.session_state.page = "overview"
+if "sel_week" not in st.session_state:
+    st.session_state.sel_week = None
+
+# ── SIDEBAR: CONEXÃO ───────────────────────────────────
+with st.sidebar:
+    st.markdown("### ⚙️ Conectar Planilha")
+    st.markdown("""
+    1. Copie a planilha pro Google Sheets
+    2. Compartilhe como "Qualquer pessoa com o link"
+    3. Copie o ID da URL (entre `/d/` e `/edit`)
+    4. Cole abaixo
+    """)
+    sheet_id = st.text_input("ID da Planilha", value=st.session_state.get("sheet_id", ""), placeholder="1AbCdEf...")
+    col1, col2 = st.columns(2)
+    with col1:
+        connect = st.button("🔗 Conectar", use_container_width=True)
+    with col2:
+        refresh = st.button("🔄 Atualizar", use_container_width=True)
+
+    if connect and sheet_id:
+        st.session_state.sheet_id = sheet_id
+    if refresh:
+        st.cache_data.clear()
+
+# ── LOAD DATA ──────────────────────────────────────────
+@st.cache_data(ttl=120, show_spinner=False)
+def fetch_all(sid):
+    sem_df, liv_df = load_data(sid)
+    if sem_df is None:
+        return None, None
+    return process_semanal(sem_df), process_lives(liv_df)
+
+sid = st.session_state.get("sheet_id", "")
+if sid:
+    with st.spinner("Buscando dados da planilha..."):
+        semanal, lives = fetch_all(sid)
+    if semanal is None:
+        st.error("Erro ao buscar. Verifique se a planilha está compartilhada como 'Qualquer pessoa com o link'.")
+        st.stop()
+    connected = True
+else:
+    # Default data
+    semanal = [
+        dict(semana=1, investimento=0, leadsAds=0, leadsEntrada=0, leadsSaida=0, vendas=0, receita=0),
+        dict(semana=2, investimento=0, leadsAds=0, leadsEntrada=0, leadsSaida=0, vendas=0, receita=0),
+        dict(semana=3, investimento=0, leadsAds=0, leadsEntrada=0, leadsSaida=0, vendas=0, receita=0),
+        dict(semana=4, investimento=0, leadsAds=0, leadsEntrada=0, leadsSaida=0, vendas=0, receita=0),
+    ]
+    lives = [
+        dict(semana=1, tipo="LVP", label="LVP", data="27/01", cliquesTotal=203, pico=261, vendas=0,
+             grupos=[dict(nome="GP1", leads=274, cliques=203, ctr=74.09, ativo=True)]),
+        dict(semana=2, tipo="LVP", label="LVP", data="03/02", cliquesTotal=648, pico=249, vendas=0,
+             grupos=[dict(nome="GP1", leads=226, cliques=98, ctr=43.36, ativo=False),
+                     dict(nome="GP2", leads=460, cliques=357, ctr=77.61, ativo=True)]),
+        dict(semana=2, tipo="LVG", label="LVG", data="04/02", cliquesTotal=287, pico=187, vendas=0,
+             grupos=[dict(nome="GP1", leads=218, cliques=37, ctr=16.97, ativo=False),
+                     dict(nome="GP2", leads=617, cliques=154, ctr=24.96, ativo=True)]),
+        dict(semana=3, tipo="LVP", label="LVP 1", data="10/02", cliquesTotal=595, pico=149, vendas=0,
+             grupos=[dict(nome="GP2", leads=617, cliques=100, ctr=16.21, ativo=False),
+                     dict(nome="GP3", leads=588, cliques=376, ctr=63.95, ativo=True)]),
+        dict(semana=3, tipo="LVP", label="LVP 2", data="11/02", cliquesTotal=341, pico=135, vendas=0,
+             grupos=[dict(nome="GP2", leads=547, cliques=50, ctr=9.14, ativo=False),
+                     dict(nome="GP3", leads=535, cliques=190, ctr=35.51, ativo=True)]),
+        dict(semana=4, tipo="LVP", label="LVP", data="18/02", cliquesTotal=779, pico=273, vendas=0,
+             grupos=[dict(nome="GP2", leads=501, cliques=64, ctr=12.77, ativo=False),
+                     dict(nome="GP3", leads=553, cliques=77, ctr=13.92, ativo=False),
+                     dict(nome="GP4", leads=693, cliques=507, ctr=73.16, ativo=True)]),
+        dict(semana=4, tipo="LVG", label="LVG", data="19/02", cliquesTotal=304, pico=167, vendas=0,
+             grupos=[dict(nome="GP2", leads=488, cliques=34, ctr=6.97, ativo=False),
+                     dict(nome="GP3", leads=568, cliques=61, ctr=10.74, ativo=False),
+                     dict(nome="GP4", leads=589, cliques=119, ctr=20.20, ativo=True)]),
+    ]
+    connected = False
+
+# ── COMPUTE ────────────────────────────────────────────
+sem_map = {s["semana"]: s for s in semanal}
+active_weeks = sorted(set(l["semana"] for l in lives))
+
+weeks_data = []
+for s in active_weeks:
+    wl = [l for l in lives if l["semana"] == s]
+    all_g = [g for l in wl for g in l["grupos"]]
+    st_ = calc_stats(all_g)
+    tc = sum(l["cliquesTotal"] for l in wl)
+    tv = sum(l["vendas"] for l in wl)
+    m = sem_map.get(s, {})
+    inv = m.get("investimento", 0)
+    la = m.get("leadsAds", 0)
+    le = m.get("leadsEntrada", 0)
+    ls_ = m.get("leadsSaida", 0)
+    cpl = inv / la if la > 0 else 0
+    txE = (le / la) * 100 if la > 0 else 0
+    txS = (ls_ / le) * 100 if le > 0 else 0
+    weeks_data.append(dict(
+        sn=s, **st_, tc=tc, pico=max((l["pico"] for l in wl), default=0),
+        inv=inv, la=la, le=le, ls=ls_, cpl=cpl, txE=round(txE, 1), txS=round(txS, 1),
+        vt=tv + m.get("vendas", 0),
+        lives_label=" + ".join(l["label"] for l in wl), evs=wl, m=m
+    ))
+
+# Overall KPIs
+ti = sum(w["inv"] for w in weeks_data)
+tla = sum(w["la"] for w in weeks_data)
+tle = sum(w["le"] for w in weeks_data)
+tls = sum(w["ls"] for w in weeks_data)
+tv_all = sum(w["vt"] for w in weeks_data)
+
+# ── HEADER ─────────────────────────────────────────────
+st.markdown("""
+<div class="brand">
+    <div class="brand-dot"></div>
+    <span class="brand-text">Grupo Rugido</span>
+</div>
+<div class="main-title">Dashboard Lives Semanais</div>
+""", unsafe_allow_html=True)
+
+status = "🟢 Conectado ao Google Sheets" if connected else "📋 Dados locais (preview) — conecte sua planilha na barra lateral"
+st.markdown(f'<div class="sub-title">{status}</div>', unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
+
+# ── NAV ────────────────────────────────────────────────
+nav_cols = st.columns(len(active_weeks) + 1)
+with nav_cols[0]:
+    if st.button("📊 Visão Geral", use_container_width=True):
+        st.session_state.sel_week = None
+        st.rerun()
+for i, s in enumerate(active_weeks):
+    with nav_cols[i + 1]:
+        if st.button(f"S{s}", use_container_width=True):
+            st.session_state.sel_week = s
+            st.rerun()
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ==========================================
-# CÁLCULOS GERAIS PARA AS LIVES
-# ==========================================
-def calculate_live_metrics(df_l):
-    gp_cols = [c for c in df_l.columns if str(c).startswith('Leads GP')]
-    max_gps = len(gp_cols)
-    
-    resultados = []
-    
-    for _, row in df_l.iterrows():
-        semana = row['Semana']
-        ativo = row['Grupo Ativo']
-        
-        cliques_ativos = 0
-        leads_ativos = 0
-        cliques_passados = 0
-        leads_passados = 0
-        
-        for i in range(1, max_gps + 1):
-            gp_name = f'GP{i}'
-            col_leads = f'Leads {gp_name}'
-            col_cliques = f'Cliques {gp_name}'
-            
-            if col_leads in row and pd.notna(row[col_leads]) and row[col_leads] > 0:
-                if gp_name == ativo:
-                    cliques_ativos += row.get(col_cliques, 0)
-                    leads_ativos += row[col_leads]
-                else:
-                    cliques_passados += row.get(col_cliques, 0)
-                    leads_passados += row[col_leads]
-                    
-        resultados.append({
-            'Semana': semana,
-            'Cliques Ativo': cliques_ativos,
-            'Leads Ativo': leads_ativos,
-            'Cliques Passados': cliques_passados,
-            'Leads Passados': leads_passados
-        })
-        
-    return pd.DataFrame(resultados)
+# ══════════════════════════════════════════════════════
+# VISÃO GERAL
+# ══════════════════════════════════════════════════════
+if st.session_state.sel_week is None:
 
-df_metricas_lives = calculate_live_metrics(df_lives)
-df_lives = pd.concat([df_lives.reset_index(drop=True), df_metricas_lives.drop('Semana', axis=1)], axis=1)
-
-# Agrupando por semana para gráficos
-df_lives_agg = df_lives.groupby('Semana').agg({
-    'Cliques Ativo': 'sum',
-    'Leads Ativo': 'sum',
-    'Cliques Passados': 'sum',
-    'Leads Passados': 'sum',
-    'Cliques Total': 'sum'
-}).reset_index()
-
-df_lives_agg['CTR Ativo (%)'] = np.where(df_lives_agg['Leads Ativo'] > 0, (df_lives_agg['Cliques Ativo'] / df_lives_agg['Leads Ativo']) * 100, 0)
-df_lives_agg['CTR Passados (%)'] = np.where(df_lives_agg['Leads Passados'] > 0, (df_lives_agg['Cliques Passados'] / df_lives_agg['Leads Passados']) * 100, 0)
-
-
-# ==========================================
-# TELA 1: VISÃO GERAL
-# ==========================================
-if st.session_state.view == 'overview':
-    
-    # 1. KPIs ACUMULADOS
-    total_inv = df_semanal['Investimento (R$)'].sum()
-    total_leads = df_semanal['Leads Ads'].sum()
-    cpl_medio = total_inv / total_leads if total_leads > 0 else 0
-    total_entrada = df_semanal['Leads Entrada'].sum()
-    taxa_entrada = (total_entrada / total_leads * 100) if total_leads > 0 else 0
-    total_saida = df_semanal['Leads Saída'].sum()
-    taxa_saida = (total_saida / total_entrada * 100) if total_entrada > 0 else 0
-    total_vendas = df_semanal['Vendas Total'].sum()
-
-    kpi_cols = st.columns(6)
+    # KPIs
+    cols = st.columns(6)
     kpis = [
-        ("Investimento Total", f"R$ {total_inv:,.2f}", "top-bar-red"),
-        ("Leads Ads Total", f"{total_leads:,.0f}", "top-bar-blue"),
-        ("CPL Médio", f"R$ {cpl_medio:,.2f}", "top-bar-orange"),
-        ("Taxa Entrada Média", f"{taxa_entrada:.1f}%", "top-bar-green"),
-        ("Taxa Saída Média", f"{taxa_saida:.1f}%", "top-bar-yellow"),
-        ("Vendas Total", f"{total_vendas:,.0f}", "top-bar-pink")
+        ("Investimento", fmtR(ti), "#ef4444", "Total tráfego"),
+        ("Leads Ads", fmt(tla), "#3b82f6", "Captados"),
+        ("CPL", fmtR(ti / tla) if tla > 0 else "–", "#f97316", ""),
+        ("Taxa Entrada", pct((tle / tla) * 100) if tla > 0 else "–", "#22c55e", ""),
+        ("Taxa Saída", pct((tls / tle) * 100) if tle > 0 else "–", "#f59e0b", ""),
+        ("Vendas", fmt(tv_all), "#ec4899", "Ingressos"),
     ]
-    
-    for col, (title, value, css_class) in zip(kpi_cols, kpis):
-        col.markdown(f"""
-        <div class="kpi-card {css_class}">
-            <div class="kpi-title">{title}</div>
-            <div class="kpi-value">{value}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    for col, (l, v, c, s) in zip(cols, kpis):
+        with col:
+            st.markdown(kpi_html(l, v, c, s), unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    # 2. GRÁFICOS
-    g_col1, g_col2 = st.columns(2)
-    
-    with g_col1:
-        st.markdown("#### Cliques por Semana")
-        fig1 = go.Figure()
-        fig1.add_trace(go.Bar(x="S" + df_lives_agg['Semana'].astype(str), y=df_lives_agg['Cliques Passados'], name='Grupos Passados', marker_color='#eab308'))
-        fig1.add_trace(go.Bar(x="S" + df_lives_agg['Semana'].astype(str), y=df_lives_agg['Cliques Ativo'], name='Grupo Ativo', marker_color='#22c55e'))
-        fig1.add_trace(go.Scatter(x="S" + df_lives_agg['Semana'].astype(str), y=df_lives_agg['Cliques Total'], name='Total', mode='lines+markers', line=dict(color='white', dash='dash')))
-        fig1.update_layout(barmode='stack', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', margin=dict(t=20, b=20, l=20, r=20))
-        st.plotly_chart(fig1, use_container_width=True)
 
-    with g_col2:
-        st.markdown("#### CTR: Ativo vs Passados")
-        fig2 = go.Figure()
-        fig2.add_trace(go.Bar(x="S" + df_lives_agg['Semana'].astype(str), y=df_lives_agg['CTR Ativo (%)'], name='CTR Ativo', marker_color='#22c55e'))
-        fig2.add_trace(go.Bar(x="S" + df_lives_agg['Semana'].astype(str), y=df_lives_agg['CTR Passados (%)'], name='CTR Passados', marker_color='#eab308'))
-        fig2.update_layout(barmode='group', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white', margin=dict(t=20, b=20, l=20, r=20))
-        st.plotly_chart(fig2, use_container_width=True)
+    # Gráfico 1: Cliques por Semana
+    st.markdown("#### Cliques por Semana")
+    st.caption("Verde = ativo · Amarelo = passados")
 
-    # 3. LISTA DE SEMANAS
-    st.markdown("#### Detalhamento Semanal")
-    for _, row in df_semanal.iterrows():
-        sem = row['Semana']
-        lives_sem = df_lives[df_lives['Semana'] == sem]
-        labels_lives = " + ".join(lives_sem['Label'].dropna().astype(str).tolist())
-        grupo_ativo = lives_sem['Grupo Ativo'].iloc[0] if not lives_sem.empty else "N/A"
-        
-        with st.container():
+    fig1 = go.Figure()
+    fig1.add_trace(go.Bar(
+        x=[f"S{w['sn']}" for w in weeks_data],
+        y=[w["ac"] for w in weeks_data],
+        name="Cliques Ativo", marker_color="#22c55e",
+    ))
+    fig1.add_trace(go.Bar(
+        x=[f"S{w['sn']}" for w in weeks_data],
+        y=[w["pc"] for w in weeks_data],
+        name="Cliques Passados", marker_color="#f59e0b",
+    ))
+    fig1.add_trace(go.Scatter(
+        x=[f"S{w['sn']}" for w in weeks_data],
+        y=[w["tc"] for w in weeks_data],
+        name="Total", mode="lines+markers",
+        line=dict(color="#fff", width=2, dash="dash"),
+        marker=dict(color="#fff", size=6),
+    ))
+    fig1.update_layout(**PLOT_LAYOUT, barmode="stack", height=320)
+    st.plotly_chart(fig1, use_container_width=True, config=dict(displayModeBar=False))
+
+    # Gráfico 2: CTR Ativo vs Passados
+    st.markdown("#### CTR: Ativo vs Passados")
+    st.caption("Comparativo semana a semana")
+
+    fig2 = go.Figure()
+    fig2.add_trace(go.Bar(
+        x=[f"S{w['sn']}" for w in weeks_data],
+        y=[w["aCTR"] for w in weeks_data],
+        name="CTR Ativo", marker_color="#22c55e",
+        text=[pct(w["aCTR"]) for w in weeks_data], textposition="outside",
+        textfont=dict(color="#22c55e", size=11),
+    ))
+    fig2.add_trace(go.Bar(
+        x=[f"S{w['sn']}" for w in weeks_data],
+        y=[w["pCTR"] for w in weeks_data],
+        name="CTR Passados", marker_color="#f59e0b",
+        text=[pct(w["pCTR"]) if w["pCTR"] > 0 else "" for w in weeks_data], textposition="outside",
+        textfont=dict(color="#f59e0b", size=11),
+    ))
+    fig2.update_layout(**PLOT_LAYOUT, barmode="group", height=300,
+                       yaxis=dict(gridcolor="#222", ticksuffix="%"))
+    st.plotly_chart(fig2, use_container_width=True, config=dict(displayModeBar=False))
+
+    # Cards de semana
+    st.markdown("#### Semanas")
+    for w in weeks_data:
+        col1, col2 = st.columns([1, 12])
+        with col1:
             st.markdown(f"""
-            <div class="live-card" style="padding:15px; display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                    <h3 style="margin:0; color:#22c55e;">Semana {int(sem)}</h3>
-                    <p style="margin:0; color:#aaa;">{labels_lives} | Ativo: <b>{grupo_ativo}</b></p>
-                </div>
-                <div style="text-align: right; display:flex; gap: 20px;">
-                    <div><span style="color:#aaa; font-size:12px;">Investimento</span><br><b>R$ {row['Investimento (R$)']:,.2f}</b></div>
-                    <div><span style="color:#aaa; font-size:12px;">CPL</span><br><b>R$ {row['CPL (R$)']:,.2f}</b></div>
-                    <div><span style="color:#aaa; font-size:12px;">Tx Entrada</span><br><b>{row['Taxa Entrada (%)']:.1f}%</b></div>
-                    <div><span style="color:#aaa; font-size:12px;">Tx Saída</span><br><b>{row['Taxa Saída (%)']:.1f}%</b></div>
-                    <div><span style="color:#aaa; font-size:12px;">Vendas</span><br><b>{row['Vendas Total']}</b></div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            <div style="background:#8b5cf618;border-radius:8px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;margin-top:4px">
+                <span style="font-size:17px;font-weight:800;color:#8b5cf6">S{w['sn']}</span>
+            </div>""", unsafe_allow_html=True)
+        with col2:
+            if st.button(
+                f"**{w['lives_label']}** · {w['ga']} ativo · Invest: {fmtR(w['inv'])} · CPL: {fmtR(w['cpl']) if w['la'] > 0 else '–'} · Entrada: {pct(w['txE']) if w['la'] > 0 else '–'} · Saída: {pct(w['txS']) if w['le'] > 0 else '–'} · Vendas: {fmt(w['vt'])}",
+                key=f"week_{w['sn']}", use_container_width=True
+            ):
+                st.session_state.sel_week = w["sn"]
+                st.rerun()
 
+# ══════════════════════════════════════════════════════
+# DETALHE DA SEMANA
+# ══════════════════════════════════════════════════════
+else:
+    sw = st.session_state.sel_week
+    w = next((w for w in weeks_data if w["sn"] == sw), None)
+    if w is None:
+        st.error("Semana não encontrada")
+        st.stop()
 
-# ==========================================
-# TELA 2: DETALHE DA SEMANA
-# ==========================================
-elif st.session_state.view == 'detail':
-    sem = st.session_state.selected_week
-    st.markdown(f"<h3 style='color:#22c55e;'>Detalhamento: Semana {int(sem)}</h3>", unsafe_allow_html=True)
-    
-    dados_sem = df_semanal[df_semanal['Semana'] == sem].iloc[0] if not df_semanal[df_semanal['Semana'] == sem].empty else None
-    
-    if dados_sem is not None:
-        c1, c2, c3, c4 = st.columns(4)
-        kpis_l1 = [
-            ("Investimento", f"R$ {dados_sem['Investimento (R$)']:,.2f}", "top-bar-red"),
-            ("Leads Ads", f"{dados_sem['Leads Ads']:,.0f}", "top-bar-blue"),
-            ("CPL", f"R$ {dados_sem['CPL (R$)']:,.2f}", "top-bar-orange"),
-            ("Vendas Total", f"{dados_sem['Vendas Total']:,.0f}", "top-bar-pink")
-        ]
-        for col, (t, v, css) in zip([c1, c2, c3, c4], kpis_l1):
-            col.markdown(f'<div class="kpi-card {css}"><div class="kpi-title">{t}</div><div class="kpi-value">{v}</div></div>', unsafe_allow_html=True)
+    if st.button("← Voltar pra Visão Geral"):
+        st.session_state.sel_week = None
+        st.rerun()
 
-        c5, c6, c7, c8 = st.columns(4)
-        kpis_l2 = [
-            ("Leads Entrada", f"{dados_sem['Leads Entrada']:,.0f}", "top-bar-green"),
-            ("Leads Saída", f"{dados_sem['Leads Saída']:,.0f}", "top-bar-yellow"),
-            ("Taxa Entrada", f"{dados_sem['Taxa Entrada (%)']:.1f}%", "top-bar-green"),
-            ("Taxa Saída", f"{dados_sem['Taxa Saída (%)']:.1f}%", "top-bar-yellow")
-        ]
-        for col, (t, v, css) in zip([c5, c6, c7, c8], kpis_l2):
-            col.markdown(f'<div class="kpi-card {css}"><div class="kpi-title">{t}</div><div class="kpi-value">{v}</div></div>', unsafe_allow_html=True)
+    st.markdown(f"## Semana {sw}")
+    st.caption(f"{len(w['evs'])} live{'s' if len(w['evs']) > 1 else ''}")
 
-    lives_sem = df_lives[df_lives['Semana'] == sem]
-    if not lives_sem.empty:
-        total_cliques_sem = lives_sem['Cliques Total'].sum()
-        pico_max = lives_sem['Pico'].max()
-        ativo_sem = lives_sem['Grupo Ativo'].iloc[0]
-        
-        agg_sem = df_lives_agg[df_lives_agg['Semana'] == sem].iloc[0]
-        ctr_ativo_sem = agg_sem['CTR Ativo (%)']
-        ctr_pass_sem = agg_sem['CTR Passados (%)']
+    # KPIs linha 1
+    cols = st.columns(4)
+    m = w["m"] if isinstance(w["m"], dict) else {}
+    kpis1 = [
+        ("Investimento", fmtR(m.get("investimento", 0)), "#ef4444", ""),
+        ("Leads Ads", fmt(m.get("leadsAds", 0)), "#3b82f6", "Captados"),
+        ("CPL", fmtR(w["cpl"]) if w["la"] > 0 else "–", "#f97316", ""),
+        ("Vendas Total", fmt(w["vt"]), "#ec4899", ""),
+    ]
+    for col, (l, v, c, s) in zip(cols, kpis1):
+        with col:
+            st.markdown(kpi_html(l, v, c, s), unsafe_allow_html=True)
+
+    # KPIs linha 2
+    cols = st.columns(4)
+    kpis2 = [
+        ("Leads Entrada", fmt(m.get("leadsEntrada", 0)), "#22c55e", "Entraram no grupo"),
+        ("Leads Saída", fmt(m.get("leadsSaida", 0)), "#f59e0b", "Saíram do grupo"),
+        ("Taxa Entrada", pct(w["txE"]) if w["la"] > 0 else "–", "#22c55e", ""),
+        ("Taxa Saída", pct(w["txS"]) if w["le"] > 0 else "–", "#f59e0b", ""),
+    ]
+    for col, (l, v, c, s) in zip(cols, kpis2):
+        with col:
+            st.markdown(kpi_html(l, v, c, s), unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Barra de resumo
+    st.markdown(f"""
+    <div class="metric-bar">
+        <div class="metric-item"><div class="m-label">Total Cliques</div><div class="m-value" style="color:#fff">{fmt(w['tc'])}</div></div>
+        <div class="metric-item"><div class="m-label">Pico</div><div class="m-value" style="color:#8b5cf6">{fmt(w['pico'])}</div></div>
+        <div class="metric-item"><div class="m-label">CTR Ativo</div><div class="m-value" style="color:#22c55e">{pct(w['aCTR'])}</div></div>
+        <div class="metric-item"><div class="m-label">CTR Passados</div><div class="m-value" style="color:#f59e0b">{pct(w['pCTR']) if w['pCTR'] > 0 else '–'}</div></div>
+        <div class="metric-item"><div class="m-label">Grupo Ativo</div><div class="m-value" style="color:#8b5cf6">{w['ga']}</div></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("#### Lives Individuais")
+
+    # Live cards
+    for ev in w["evs"]:
+        tc = "#3b82f6" if ev["tipo"] == "LVP" else "#f59e0b"
+        tl = "Prospecção" if ev["tipo"] == "LVP" else "Conteúdo"
+        est = calc_stats(ev["grupos"])
 
         st.markdown(f"""
-        <div style="background-color:#1a1a33; padding:15px; border-radius:8px; border:1px solid #333; display:flex; justify-content:space-around; margin-bottom: 25px;">
-            <div style="text-align:center"><span style="color:#aaa; font-size:12px">Total Cliques</span><br><b>{total_cliques_sem}</b></div>
-            <div style="text-align:center"><span style="color:#aaa; font-size:12px">Pico Máximo</span><br><b>{pico_max}</b></div>
-            <div style="text-align:center"><span style="color:#aaa; font-size:12px">CTR Grupo Ativo ({ativo_sem})</span><br><b style="color:#22c55e;">{ctr_ativo_sem:.1f}%</b></div>
-            <div style="text-align:center"><span style="color:#aaa; font-size:12px">CTR Grupos Passados</span><br><b style="color:#eab308;">{ctr_pass_sem:.1f}%</b></div>
-        </div>
+        <div class="live-card">
+            <div class="live-header" style="background:{tc}10;border-bottom:1px solid {tc}20">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div style="width:8px;height:8px;border-radius:50%;background:{tc}"></div>
+                    <span style="font-size:15px;font-weight:800;color:{tc}">{ev['label']}</span>
+                    <span style="font-size:10px;color:{tc};background:{tc}18;padding:2px 8px;border-radius:6px;font-weight:600">{tl}</span>
+                </div>
+                <span style="font-size:12px;color:#888">{ev['data']}</span>
+            </div>
+            <div class="live-body">
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;text-align:center">
+                    <div><div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px">Total Cliques</div><div style="font-size:18px;font-weight:800;color:#fff">{fmt(ev['cliquesTotal'])}</div></div>
+                    <div><div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px">Pico</div><div style="font-size:18px;font-weight:800;color:#8b5cf6">{fmt(ev['pico'])}</div></div>
+                    <div><div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px">CTR Ativo</div><div style="font-size:18px;font-weight:800;color:#22c55e">{pct(est['aCTR'])}</div></div>
+                    <div><div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px">Vendas</div><div style="font-size:18px;font-weight:800;color:#ec4899">{fmt(ev['vendas'])}</div></div>
+                </div>
         """, unsafe_allow_html=True)
 
-        for _, live in lives_sem.iterrows():
-            tipo_nome = "Prospecção" if live['Tipo'] == 'LVP' else "Conteúdo"
-            cor_tipo = "#3b82f6" if live['Tipo'] == 'LVP' else "#f97316"
-            ativo = live['Grupo Ativo']
-            
-            col_leads_ativo = f"Leads {ativo}"
-            col_cliques_ativo = f"Cliques {ativo}"
-            ctr_ativo_live = 0
-            if col_leads_ativo in live and pd.notna(live[col_leads_ativo]) and live[col_leads_ativo] > 0:
-                ctr_ativo_live = (live.get(col_cliques_ativo, 0) / live[col_leads_ativo]) * 100
+        if ev["grupos"]:
+            n_cols = min(len(ev["grupos"]), 5)
+            grupos_html = f'<div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600">Grupos</div>'
+            grupos_html += f'<div style="display:grid;grid-template-columns:repeat({n_cols},1fr);gap:8px">'
+            for g in ev["grupos"]:
+                cls = "ativo" if g["ativo"] else "passivo"
+                nc = "#22c55e" if g["ativo"] else "#777"
+                tag = '<span style="font-size:8px;color:#22c55e;background:#22c55e20;padding:1px 5px;border-radius:4px;font-weight:700;margin-left:6px">ATIVO</span>' if g["ativo"] else ""
+                ctr_c = "#22c55e" if g["ativo"] else ("#f59e0b" if g["ctr"] > 20 else "#ef4444")
+                grupos_html += f'''
+                <div class="grupo-card {cls}">
+                    <div style="display:flex;align-items:center;margin-bottom:6px">
+                        <span style="font-size:12px;font-weight:700;color:{nc}">{g['nome']}</span>{tag}
+                    </div>
+                    <div style="font-size:11px;color:#bbb;line-height:1.9">
+                        <div>Leads: <strong style="color:#ddd">{fmt(g['leads'])}</strong></div>
+                        <div>Cliques: <strong style="color:#ddd">{fmt(g['cliques'])}</strong></div>
+                        <div>CTR: <strong style="color:{ctr_c}">{g['ctr']}%</strong></div>
+                    </div>
+                </div>'''
+            grupos_html += "</div>"
+            st.markdown(grupos_html, unsafe_allow_html=True)
 
-            st.markdown(f"""
-            <div class="live-card">
-                <div style="display:flex; justify-content:space-between; border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:15px;">
-                    <div>
-                        <h4 style="margin:0;">{live['Label']} <span style="font-size:12px; background-color:{cor_tipo}; padding:2px 6px; border-radius:4px; margin-left:10px;">{tipo_nome}</span></h4>
-                        <span style="color:#aaa; font-size:14px;">Data: {live['Data']}</span>
-                    </div>
-                    <div style="display:flex; gap:20px; text-align:right;">
-                        <div><span style="color:#aaa; font-size:12px;">Cliques</span><br><b>{live['Cliques Total']}</b></div>
-                        <div><span style="color:#aaa; font-size:12px;">Pico</span><br><b>{live['Pico']}</b></div>
-                        <div><span style="color:#aaa; font-size:12px;">CTR Ativo</span><br><b style="color:#22c55e;">{ctr_ativo_live:.1f}%</b></div>
-                        <div><span style="color:#aaa; font-size:12px;">Vendas</span><br><b>{live['Vendas']}</b></div>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("<div style='display:flex; gap:10px; flex-wrap:wrap;'>", unsafe_allow_html=True)
-            
-            gp_cols = [c for c in live.index if str(c).startswith('Leads GP')]
-            for c in gp_cols:
-                gp_nome = str(c).replace('Leads ', '')
-                leads_gp = live[c]
-                cliques_gp = live.get(f'Cliques {gp_nome}', 0)
-                
-                if pd.notna(leads_gp) and leads_gp > 0:
-                    ctr_gp = (cliques_gp / leads_gp) * 100 if leads_gp > 0 else 0
-                    
-                    is_ativo = (gp_nome == ativo)
-                    tag_html = "<span class='badge-ativo'>ATIVO</span><br>" if is_ativo else ""
-                    
-                    cor_ctr = "#22c55e" if is_ativo else ("#eab308" if ctr_gp > 20 else "#ef4444")
+        st.markdown("</div></div>", unsafe_allow_html=True)
 
-                    st.markdown(f"""
-                    <div class="group-card" style="width: 120px;">
-                        {tag_html}
-                        <b style="color:#aaa;">{gp_nome}</b><br>
-                        <span style="font-size:12px;">L: {int(leads_gp)} | C: {int(cliques_gp)}</span><br>
-                        <b style="color:{cor_ctr}; font-size:14px;">{ctr_gp:.1f}%</b>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            st.markdown("</div></div>", unsafe_allow_html=True)
+# Footer
+st.markdown("<br><br>", unsafe_allow_html=True)
+st.markdown('<div style="text-align:center;font-size:11px;color:#444;border-top:1px solid #1a1a28;padding-top:16px">Dashboard Lives Semanais · Grupo Rugido · 2026</div>', unsafe_allow_html=True)
