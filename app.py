@@ -81,7 +81,7 @@ def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
     
     # 2. COLE O LINK DA SUA PLANILHA AQUI DENTRO DAS ASPAS
-    url_planilha = "COLE_AQUI_O_LINK_COMPLETO_DA_SUA_PLANILHA"
+    url_planilha = "https://docs.google.com/spreadsheets/d/17WFm9kfssn7I0YhMIaZ3_6bEBHVVdJlD/edit?usp=sharing&ouid=104007573414009605852&rtpof=true&sd=true"
     
     # 3. Faz a leitura das abas (os nomes têm que estar EXATAMENTE iguais aos da planilha)
     df_semanal = conn.read(spreadsheet=url_planilha, worksheet="Semanal")
@@ -385,3 +385,4 @@ elif st.session_state.view == 'detail':
                     """, unsafe_allow_html=True)
             
             st.markdown("</div></div>", unsafe_allow_html=True) # Fecha live-card
+
