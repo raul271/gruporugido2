@@ -451,8 +451,8 @@ if st.session_state.sel_week is None:
         text=[pct(w["pCTR"]) if w["pCTR"] > 0 else "" for w in weeks_data], textposition="outside",
         textfont=dict(color="#f59e0b", size=11),
     ))
-    fig2.update_layout(**PLOT_LAYOUT, barmode="group", height=300,
-                       yaxis=dict(gridcolor="#222", ticksuffix="%"))
+    fig2.update_layout(**PLOT_LAYOUT, barmode="group", height=300)
+    fig2.update_yaxes(gridcolor="#222", ticksuffix="%")
     st.plotly_chart(fig2, use_container_width=True, config=dict(displayModeBar=False))
 
     # Cards de semana
