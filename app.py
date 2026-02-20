@@ -103,6 +103,25 @@ def kpi_html(label, value, color, sub=""):
         {sub_html}
     </div>'''
 
+def safe_float(v):
+    """Parse any number format: 1000, 1.000, 1.000,00, R$ 1.000,00, etc."""
+    if v is None or v == "" or (isinstance(v, float) and pd.isna(v)):
+        return 0.0
+    s = str(v).strip()
+    # Remove currency symbols and spaces
+    for ch in ["R$", "r$", "%", " ", "\xa0"]:
+        s = s.replace(ch, "")
+    s = s.strip()
+    if not s:
+        return 0.0
+    # Brazilian format: 1.234,56 → remove dots, replace comma with dot
+    if "," in s:
+        s = s.replace(".", "").replace(",", ".")
+    try:
+        return float(s)
+    except:
+        return 0.0
+
 def parse_csv_from_url(url):
     try:
         r = requests.get(url, timeout=15)
@@ -133,18 +152,46 @@ def load_data(sheet_id):
 
     return sem_df, liv_df
 
+def col_match(df_cols, target):
+    """Find column name matching target, handling encoding variations."""
+    target_lower = target.lower().strip()
+    for c in df_cols:
+        if c.lower().strip() == target_lower:
+            return c
+    # Partial match
+    for c in df_cols:
+        cl = c.lower().strip()
+        # Remove accents for comparison
+        simple_t = target_lower.replace("í","i").replace("ã","a").replace("ç","c").replace("é","e").replace("ú","u")
+        simple_c = cl.replace("í","i").replace("ã","a").replace("ç","c").replace("é","e").replace("ú","u")
+        if simple_t == simple_c:
+            return c
+    return None
+
+def get_val(row, names):
+    """Try multiple column names and return the first match."""
+    if isinstance(names, str):
+        names = [names]
+    for name in names:
+        if name in row.index:
+            return row[name]
+        matched = col_match(row.index.tolist(), name)
+        if matched and matched in row.index:
+            return row[matched]
+    return 0
+
 def process_semanal(df):
     records = []
     for _, row in df.iterrows():
-        s = int(row.get("Semana", 0))
+        s = int(safe_float(get_val(row, "Semana")))
         if s <= 0:
             continue
-        inv = float(row.get("Investimento (R$)", 0) or 0)
-        la = float(row.get("Leads Ads", 0) or 0)
-        le = float(row.get("Leads Entrada", 0) or 0)
-        ls_ = float(row.get("Leads Saida", row.get("Leads Saída", 0)) or 0)
-        vt = float(row.get("Vendas Total", 0) or 0)
-        rec = float(row.get("Receita (R$)", 0) or 0)
+        inv = safe_float(get_val(row, ["Investimento (R$)", "Investimento"]))
+        la = safe_float(get_val(row, "Leads Ads"))
+        le = safe_float(get_val(row, "Leads Entrada"))
+        ls_ = safe_float(get_val(row, ["Leads Saida", "Leads Saída"]))
+        vt = safe_float(get_val(row, "Vendas Total"))
+        rec = safe_float(get_val(row, ["Receita (R$)", "Receita"]))
         records.append(dict(semana=s, investimento=inv, leadsAds=la, leadsEntrada=le, leadsSaida=ls_, vendas=vt, receita=rec))
     return records
 
@@ -153,7 +200,7 @@ def process_lives(df):
     if df is None:
         return lives
     for _, row in df.iterrows():
-        semana = int(row.get("Semana", 0) or 0)
+        semana = int(safe_float(row.get("Semana", 0)))
         tipo = str(row.get("Tipo", "")).strip().upper()
         label = str(row.get("Label", "")).strip()
         if not semana or not tipo or not label or tipo == "NAN":
@@ -161,17 +208,17 @@ def process_lives(df):
         ga = str(row.get("Grupo Ativo", "")).strip().upper()
         grupos = []
         for g in range(1, MAX_GP + 1):
-            leads = float(row.get(f"Leads GP{g}", 0) or 0)
-            cliques = float(row.get(f"Cliques GP{g}", 0) or 0)
-            ctr = float(row.get(f"CTR GP{g}", 0) or 0)
+            leads = safe_float(row.get(f"Leads GP{g}", 0))
+            cliques = safe_float(row.get(f"Cliques GP{g}", 0))
+            ctr = safe_float(row.get(f"CTR GP{g}", 0))
             if leads > 0 or cliques > 0:
                 grupos.append(dict(nome=f"GP{g}", leads=leads, cliques=cliques, ctr=ctr, ativo=f"GP{g}" == ga))
         lives.append(dict(
             semana=semana, tipo=tipo, label=label,
             data=str(row.get("Data", "")).strip(),
-            cliquesTotal=float(row.get("Cliques Total", 0) or 0),
-            pico=float(row.get("Pico", 0) or 0),
-            vendas=float(row.get("Vendas", 0) or 0),
+            cliquesTotal=safe_float(row.get("Cliques Total", 0)),
+            pico=safe_float(row.get("Pico", 0)),
+            vendas=safe_float(row.get("Vendas", 0)),
             grupos=grupos,
         ))
     return lives
