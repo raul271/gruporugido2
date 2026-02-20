@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
-from streamlit_gsheets import GSheetsConnection # <--- Nova biblioteca aqui!
+from streamlit_gsheets import GSheetsConnection
 
 # ==========================================
 # CONFIGURAÇÃO DA PÁGINA E ESTILO VISUAL
@@ -74,16 +74,15 @@ st.markdown("""
 # ==========================================
 # CARREGAMENTO E PREPARAÇÃO DOS DADOS
 # ==========================================
-# O ttl=600 faz o dashboard buscar dados novos na planilha a cada 10 minutos (600 segundos)
 @st.cache_data(ttl=600)
 def load_data():
-    # 1. Cria a conexão com o Google Sheets
+    # Cria a conexão com o Google Sheets
     conn = st.connection("gsheets", type=GSheetsConnection)
     
-    # 2. COLE O LINK DA SUA PLANILHA AQUI DENTRO DAS ASPAS
+    # O SEU LINK DA PLANILHA ESTÁ AQUI:
     url_planilha = "https://docs.google.com/spreadsheets/d/17WFm9kfssn7I0YhMIaZ3_6bEBHVVdJlD/edit?usp=sharing&ouid=104007573414009605852&rtpof=true&sd=true"
     
-    # 3. Faz a leitura das abas (os nomes têm que estar EXATAMENTE iguais aos da planilha)
+    # Faz a leitura das abas
     df_semanal = conn.read(spreadsheet=url_planilha, worksheet="Semanal")
     df_lives = conn.read(spreadsheet=url_planilha, worksheet="Lives e Grupos")
 
@@ -98,7 +97,12 @@ def load_data():
 
     return df_semanal, df_lives
 
-df_semanal, df_lives = load_data()
+# Tenta carregar os dados. Se der erro de aba não encontrada, ele avisa na tela.
+try:
+    df_semanal, df_lives = load_data()
+except Exception as e:
+    st.error(f"Erro ao ler a planilha. Verifique se as abas se chamam exatamente 'Semanal' e 'Lives e Grupos'. Detalhe do erro: {e}")
+    st.stop()
 
 # ==========================================
 # NAVEGAÇÃO E CONTROLE DE ESTADO
@@ -121,12 +125,14 @@ st.markdown("<h2 class='header-title'>Grupo Rugido <span style='color: white; fo
 st.markdown("---")
 
 # Botões de Navegação Superiores
-cols_nav = st.columns([2] + [1] * len(df_semanal['Semana'].unique()))
+semanas_disponiveis = sorted(df_semanal['Semana'].unique())
+cols_nav = st.columns([2] + [1] * len(semanas_disponiveis))
+
 if cols_nav[0].button("🏠 Visão Geral", use_container_width=True):
     go_to_overview()
 
-for idx, week in enumerate(sorted(df_semanal['Semana'].unique())):
-    if cols_nav[idx+1].button(f"S{week}", use_container_width=True):
+for idx, week in enumerate(semanas_disponiveis):
+    if cols_nav[idx+1].button(f"S{int(week)}", use_container_width=True):
         go_to_week(week)
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -135,8 +141,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # CÁLCULOS GERAIS PARA AS LIVES
 # ==========================================
 def calculate_live_metrics(df_l):
-    # Identificar colunas de grupos disponíveis
-    gp_cols = [c for c in df_l.columns if c.startswith('Leads GP')]
+    gp_cols = [c for c in df_l.columns if str(c).startswith('Leads GP')]
     max_gps = len(gp_cols)
     
     resultados = []
@@ -157,7 +162,7 @@ def calculate_live_metrics(df_l):
             
             if col_leads in row and pd.notna(row[col_leads]) and row[col_leads] > 0:
                 if gp_name == ativo:
-                    cliques_ativos += row[col_cliques]
+                    cliques_ativos += row.get(col_cliques, 0)
                     leads_ativos += row[col_leads]
                 else:
                     cliques_passados += row.get(col_cliques, 0)
@@ -248,16 +253,15 @@ if st.session_state.view == 'overview':
     st.markdown("#### Detalhamento Semanal")
     for _, row in df_semanal.iterrows():
         sem = row['Semana']
-        # Resumo das lives
         lives_sem = df_lives[df_lives['Semana'] == sem]
-        labels_lives = " + ".join(lives_sem['Label'].dropna().tolist())
+        labels_lives = " + ".join(lives_sem['Label'].dropna().astype(str).tolist())
         grupo_ativo = lives_sem['Grupo Ativo'].iloc[0] if not lives_sem.empty else "N/A"
         
         with st.container():
             st.markdown(f"""
             <div class="live-card" style="padding:15px; display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                    <h3 style="margin:0; color:#22c55e;">Semana {sem}</h3>
+                    <h3 style="margin:0; color:#22c55e;">Semana {int(sem)}</h3>
                     <p style="margin:0; color:#aaa;">{labels_lives} | Ativo: <b>{grupo_ativo}</b></p>
                 </div>
                 <div style="text-align: right; display:flex; gap: 20px;">
@@ -276,13 +280,11 @@ if st.session_state.view == 'overview':
 # ==========================================
 elif st.session_state.view == 'detail':
     sem = st.session_state.selected_week
-    st.markdown(f"<h3 style='color:#22c55e;'>Detalhamento: Semana {sem}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='color:#22c55e;'>Detalhamento: Semana {int(sem)}</h3>", unsafe_allow_html=True)
     
-    # Dados da semana
     dados_sem = df_semanal[df_semanal['Semana'] == sem].iloc[0] if not df_semanal[df_semanal['Semana'] == sem].empty else None
     
     if dados_sem is not None:
-        # KPIs Linha 1
         c1, c2, c3, c4 = st.columns(4)
         kpis_l1 = [
             ("Investimento", f"R$ {dados_sem['Investimento (R$)']:,.2f}", "top-bar-red"),
@@ -293,7 +295,6 @@ elif st.session_state.view == 'detail':
         for col, (t, v, css) in zip([c1, c2, c3, c4], kpis_l1):
             col.markdown(f'<div class="kpi-card {css}"><div class="kpi-title">{t}</div><div class="kpi-value">{v}</div></div>', unsafe_allow_html=True)
 
-        # KPIs Linha 2
         c5, c6, c7, c8 = st.columns(4)
         kpis_l2 = [
             ("Leads Entrada", f"{dados_sem['Leads Entrada']:,.0f}", "top-bar-green"),
@@ -304,7 +305,6 @@ elif st.session_state.view == 'detail':
         for col, (t, v, css) in zip([c5, c6, c7, c8], kpis_l2):
             col.markdown(f'<div class="kpi-card {css}"><div class="kpi-title">{t}</div><div class="kpi-value">{v}</div></div>', unsafe_allow_html=True)
 
-    # Resumo Geral Barra Horizontal
     lives_sem = df_lives[df_lives['Semana'] == sem]
     if not lives_sem.empty:
         total_cliques_sem = lives_sem['Cliques Total'].sum()
@@ -324,18 +324,16 @@ elif st.session_state.view == 'detail':
         </div>
         """, unsafe_allow_html=True)
 
-        # Cards das Lives Individuais
         for _, live in lives_sem.iterrows():
             tipo_nome = "Prospecção" if live['Tipo'] == 'LVP' else "Conteúdo"
             cor_tipo = "#3b82f6" if live['Tipo'] == 'LVP' else "#f97316"
             ativo = live['Grupo Ativo']
             
-            # Cálculo CTR do grupo ativo nesta live
             col_leads_ativo = f"Leads {ativo}"
             col_cliques_ativo = f"Cliques {ativo}"
             ctr_ativo_live = 0
-            if col_leads_ativo in live and live[col_leads_ativo] > 0:
-                ctr_ativo_live = (live[col_cliques_ativo] / live[col_leads_ativo]) * 100
+            if col_leads_ativo in live and pd.notna(live[col_leads_ativo]) and live[col_leads_ativo] > 0:
+                ctr_ativo_live = (live.get(col_cliques_ativo, 0) / live[col_leads_ativo]) * 100
 
             st.markdown(f"""
             <div class="live-card">
@@ -353,12 +351,11 @@ elif st.session_state.view == 'detail':
                 </div>
             """, unsafe_allow_html=True)
             
-            # Renderizando os mini-cards de grupos
             st.markdown("<div style='display:flex; gap:10px; flex-wrap:wrap;'>", unsafe_allow_html=True)
             
             gp_cols = [c for c in live.index if str(c).startswith('Leads GP')]
             for c in gp_cols:
-                gp_nome = c.replace('Leads ', '')
+                gp_nome = str(c).replace('Leads ', '')
                 leads_gp = live[c]
                 cliques_gp = live.get(f'Cliques {gp_nome}', 0)
                 
@@ -368,12 +365,7 @@ elif st.session_state.view == 'detail':
                     is_ativo = (gp_nome == ativo)
                     tag_html = "<span class='badge-ativo'>ATIVO</span><br>" if is_ativo else ""
                     
-                    # Definição de cor do CTR
-                    cor_ctr = "white"
-                    if is_ativo:
-                        cor_ctr = "#22c55e"
-                    else:
-                        cor_ctr = "#eab308" if ctr_gp > 20 else "#ef4444"
+                    cor_ctr = "#22c55e" if is_ativo else ("#eab308" if ctr_gp > 20 else "#ef4444")
 
                     st.markdown(f"""
                     <div class="group-card" style="width: 120px;">
@@ -384,5 +376,4 @@ elif st.session_state.view == 'detail':
                     </div>
                     """, unsafe_allow_html=True)
             
-            st.markdown("</div></div>", unsafe_allow_html=True) # Fecha live-card
-
+            st.markdown("</div></div>", unsafe_allow_html=True)
