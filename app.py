@@ -13,68 +13,70 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ── TEMA ESCURO CUSTOMIZADO ────────────────────────────
+# ── TEMA CLEAN/BRANCO CUSTOMIZADO ──────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
 
 /* Reset geral */
-.stApp { background-color: #0d0d1a; font-family: 'DM Sans', sans-serif; }
-header, [data-testid="stHeader"] { background-color: #0d0d1a !important; }
-[data-testid="stSidebar"] { background-color: #151528; }
+.stApp { background-color: #f4f6f8; font-family: 'DM Sans', sans-serif; }
+header, [data-testid="stHeader"] { background-color: transparent !important; }
+[data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #e5e7eb; }
 
 /* Cards de KPI */
 .kpi-card {
-    background: #151528; border-radius: 12px; padding: 16px 14px;
-    border: 1px solid #222; position: relative; overflow: hidden; text-align: left;
+    background: #ffffff; border-radius: 12px; padding: 16px 14px;
+    border: 1px solid #e5e7eb; position: relative; overflow: hidden; text-align: left;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 .kpi-card .bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-.kpi-card .label { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-.kpi-card .value { font-size: 22px; font-weight: 800; margin-bottom: 2px; }
-.kpi-card .sub { font-size: 11px; color: #555; }
+.kpi-card .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; font-weight: 600; }
+.kpi-card .value { font-size: 24px; font-weight: 800; margin-bottom: 2px; color: #111827; }
+.kpi-card .sub { font-size: 11px; color: #9ca3af; }
 
-/* Marca */
-.brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-.brand-dot { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e88; }
-.brand-text { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #22c55e; font-weight: 600; }
-.main-title { font-size: 28px; font-weight: 800; color: #fff; letter-spacing: -0.5px; margin: 4px 0 6px; }
-.sub-title { font-size: 13px; color: #888; }
+/* Marca (Estilo Referência) */
+.brand { display: flex; align-items: center; gap: 8px; margin-bottom: -4px; }
+.brand-text { font-size: 28px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px; }
+.brand-highlight { color: #e91e63; }
+.main-title { font-size: 16px; font-weight: 600; color: #6b7280; margin: 0 0 16px 0; }
+.sub-title { font-size: 13px; color: #4b5563; }
 
 /* Live card */
-.live-card { background: #151528; border-radius: 12px; border: 1px solid #222; overflow: hidden; margin-bottom: 14px; }
+.live-card { background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; margin-bottom: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
 .live-header { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .live-body { padding: 16px; }
 
 /* Grupo card */
 .grupo-card { border-radius: 8px; padding: 10px 12px; }
-.grupo-card.ativo { background: rgba(34,197,94,0.04); border: 1px solid rgba(34,197,94,0.15); }
-.grupo-card.passivo { background: #0a0a18; border: 1px solid #1a1a28; }
+.grupo-card.ativo { background: #ecfdf5; border: 1px solid #a7f3d0; }
+.grupo-card.passivo { background: #f9fafb; border: 1px solid #e5e7eb; }
 
 /* Week card */
 .week-card {
-    background: #151528; border-radius: 12px; border: 1px solid #222;
+    background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;
     padding: 14px 18px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.2s;
 }
-.week-card:hover { border-color: #8b5cf6 !important; }
+.week-card:hover { border-color: #e91e63 !important; }
 
 /* Metric bar */
-.metric-bar { background: #151528; border-radius: 12px; border: 1px solid #222; padding: 14px 20px; display: flex; gap: 28px; flex-wrap: wrap; }
-.metric-item .m-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
-.metric-item .m-value { font-size: 16px; font-weight: 800; }
+.metric-bar { background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; padding: 14px 20px; display: flex; gap: 28px; flex-wrap: wrap; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+.metric-item .m-label { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+.metric-item .m-value { font-size: 18px; font-weight: 800; color: #111827; }
 
 /* Botões do tab */
 div[data-testid="stHorizontalBlock"] button {
-    background: #151528 !important; color: #888 !important;
-    border: 1px solid #222 !important; border-radius: 8px !important;
+    background: #ffffff !important; color: #374151 !important;
+    border: 1px solid #d1d5db !important; border-radius: 8px !important;
     font-weight: 700 !important; font-size: 13px !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 div[data-testid="stHorizontalBlock"] button:hover {
-    border-color: #8b5cf6 !important; color: #8b5cf6 !important;
+    border-color: #e91e63 !important; color: #e91e63 !important; background: #fdf2f8 !important;
 }
 
-/* Esconder elementos padrão do Streamlit */
+/* Esconder elementos padrão do Streamlit e Ajustar Padding do Topo */
 #MainMenu, footer, [data-testid="stDecoration"] { display: none !important; }
-.block-container { padding-top: 2rem !important; max-width: 960px !important; }
+.block-container { padding-top: 4rem !important; max-width: 1000px !important; } /* AQUI CORRIGE O TÍTULO TAMPADO */
 
 /* Plotly background fix */
 .js-plotly-plot .plotly .main-svg { background: transparent !important; }
@@ -104,17 +106,14 @@ def kpi_html(label, value, color, sub=""):
     </div>'''
 
 def safe_float(v):
-    """Parse any number format: 1000, 1.000, 1.000,00, R$ 1.000,00, etc."""
     if v is None or v == "" or (isinstance(v, float) and pd.isna(v)):
         return 0.0
     s = str(v).strip()
-    # Remove currency symbols and spaces
     for ch in ["R$", "r$", "%", " ", "\xa0"]:
         s = s.replace(ch, "")
     s = s.strip()
     if not s:
         return 0.0
-    # Brazilian format: 1.234,56 → remove dots, replace comma with dot
     if "," in s:
         s = s.replace(".", "").replace(",", ".")
     try:
@@ -138,30 +137,19 @@ def load_data(sheet_id):
     if sem_df is None:
         return None, None
 
-    # Lives e Grupos — skip row 1 (GP labels)
+    # Lives e Grupos (Correção da Semana 1)
     lives_url = f"{base}&sheet=Lives+e+Grupos"
-    try:
-        r = requests.get(lives_url, timeout=15)
-        r.raise_for_status()
-        lines = r.text.strip().split("\n")
-        # Row 0 = GP labels (from gviz perspective), Row 1 = actual headers
-        clean = "\n".join([lines[0]] + lines[2:])
-        liv_df = pd.read_csv(StringIO(clean))
-    except:
-        liv_df = None
+    liv_df = parse_csv_from_url(lives_url)
 
     return sem_df, liv_df
 
 def col_match(df_cols, target):
-    """Find column name matching target, handling encoding variations."""
     target_lower = target.lower().strip()
     for c in df_cols:
         if c.lower().strip() == target_lower:
             return c
-    # Partial match
     for c in df_cols:
         cl = c.lower().strip()
-        # Remove accents for comparison
         simple_t = target_lower.replace("í","i").replace("ã","a").replace("ç","c").replace("é","e").replace("ú","u")
         simple_c = cl.replace("í","i").replace("ã","a").replace("ç","c").replace("é","e").replace("ú","u")
         if simple_t == simple_c:
@@ -169,7 +157,6 @@ def col_match(df_cols, target):
     return None
 
 def get_val(row, names):
-    """Try multiple column names and return the first match."""
     if isinstance(names, str):
         names = [names]
     for name in names:
@@ -237,16 +224,16 @@ def calc_stats(grupos):
         ga=at[0]["nome"] if at else "-"
     )
 
-# ── PLOTLY LAYOUT ──────────────────────────────────────
+# ── PLOTLY LAYOUT (Adaptado pro Tema Claro) ────────────
 PLOT_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="#151528",
-    font=dict(family="DM Sans", color="#aaa", size=12),
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="DM Sans", color="#6b7280", size=12),
     margin=dict(l=50, r=20, t=30, b=40),
-    xaxis=dict(gridcolor="#222", zerolinecolor="#222"),
-    yaxis=dict(gridcolor="#222", zerolinecolor="#222"),
+    xaxis=dict(gridcolor="#f3f4f6", zerolinecolor="#f3f4f6"),
+    yaxis=dict(gridcolor="#f3f4f6", zerolinecolor="#f3f4f6"),
     legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=11)),
-    hoverlabel=dict(bgcolor="#1a1a2e", bordercolor="#333", font=dict(family="DM Sans", size=13)),
+    hoverlabel=dict(bgcolor="#ffffff", bordercolor="#e5e7eb", font=dict(family="DM Sans", size=13, color="#111827")),
 )
 
 # ── SESSION STATE ──────────────────────────────────────
@@ -309,20 +296,6 @@ else:
         dict(semana=2, tipo="LVG", label="LVG", data="04/02", cliquesTotal=287, pico=187, vendas=0,
              grupos=[dict(nome="GP1", leads=218, cliques=37, ctr=16.97, ativo=False),
                      dict(nome="GP2", leads=617, cliques=154, ctr=24.96, ativo=True)]),
-        dict(semana=3, tipo="LVP", label="LVP 1", data="10/02", cliquesTotal=595, pico=149, vendas=0,
-             grupos=[dict(nome="GP2", leads=617, cliques=100, ctr=16.21, ativo=False),
-                     dict(nome="GP3", leads=588, cliques=376, ctr=63.95, ativo=True)]),
-        dict(semana=3, tipo="LVP", label="LVP 2", data="11/02", cliquesTotal=341, pico=135, vendas=0,
-             grupos=[dict(nome="GP2", leads=547, cliques=50, ctr=9.14, ativo=False),
-                     dict(nome="GP3", leads=535, cliques=190, ctr=35.51, ativo=True)]),
-        dict(semana=4, tipo="LVP", label="LVP", data="18/02", cliquesTotal=779, pico=273, vendas=0,
-             grupos=[dict(nome="GP2", leads=501, cliques=64, ctr=12.77, ativo=False),
-                     dict(nome="GP3", leads=553, cliques=77, ctr=13.92, ativo=False),
-                     dict(nome="GP4", leads=693, cliques=507, ctr=73.16, ativo=True)]),
-        dict(semana=4, tipo="LVG", label="LVG", data="19/02", cliquesTotal=304, pico=167, vendas=0,
-             grupos=[dict(nome="GP2", leads=488, cliques=34, ctr=6.97, ativo=False),
-                     dict(nome="GP3", leads=568, cliques=61, ctr=10.74, ativo=False),
-                     dict(nome="GP4", leads=589, cliques=119, ctr=20.20, ativo=True)]),
     ]
     connected = False
 
@@ -362,8 +335,7 @@ tv_all = sum(w["vt"] for w in weeks_data)
 # ── HEADER ─────────────────────────────────────────────
 st.markdown("""
 <div class="brand">
-    <div class="brand-dot"></div>
-    <span class="brand-text">Grupo Rugido</span>
+    <span class="brand-text">Grupo <span class="brand-highlight">Rugido</span></span>
 </div>
 <div class="main-title">Dashboard Lives Semanais</div>
 """, unsafe_allow_html=True)
@@ -408,7 +380,7 @@ if st.session_state.sel_week is None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Gráfico 1: Cliques por Semana
-    st.markdown("#### Cliques por Semana")
+    st.markdown('<h4 style="color:#111827;">Cliques por Semana</h4>', unsafe_allow_html=True)
     st.caption("Verde = ativo · Amarelo = passados")
 
     fig1 = go.Figure()
@@ -426,14 +398,14 @@ if st.session_state.sel_week is None:
         x=[f"S{w['sn']}" for w in weeks_data],
         y=[w["tc"] for w in weeks_data],
         name="Total", mode="lines+markers",
-        line=dict(color="#fff", width=2, dash="dash"),
-        marker=dict(color="#fff", size=6),
+        line=dict(color="#111827", width=2, dash="dash"),
+        marker=dict(color="#111827", size=6),
     ))
     fig1.update_layout(**PLOT_LAYOUT, barmode="stack", height=320)
     st.plotly_chart(fig1, use_container_width=True, config=dict(displayModeBar=False))
 
     # Gráfico 2: CTR Ativo vs Passados
-    st.markdown("#### CTR: Ativo vs Passados")
+    st.markdown('<h4 style="color:#111827;">CTR: Ativo vs Passados</h4>', unsafe_allow_html=True)
     st.caption("Comparativo semana a semana")
 
     fig2 = go.Figure()
@@ -452,17 +424,17 @@ if st.session_state.sel_week is None:
         textfont=dict(color="#f59e0b", size=11),
     ))
     fig2.update_layout(**PLOT_LAYOUT, barmode="group", height=300)
-    fig2.update_yaxes(gridcolor="#222", ticksuffix="%")
+    fig2.update_yaxes(gridcolor="#f3f4f6", ticksuffix="%")
     st.plotly_chart(fig2, use_container_width=True, config=dict(displayModeBar=False))
 
     # Cards de semana
-    st.markdown("#### Semanas")
+    st.markdown('<h4 style="color:#111827;">Semanas</h4>', unsafe_allow_html=True)
     for w in weeks_data:
         col1, col2 = st.columns([1, 12])
         with col1:
             st.markdown(f"""
-            <div style="background:#8b5cf618;border-radius:8px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;margin-top:4px">
-                <span style="font-size:17px;font-weight:800;color:#8b5cf6">S{w['sn']}</span>
+            <div style="background:#fdf2f8;border-radius:8px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;margin-top:4px">
+                <span style="font-size:17px;font-weight:800;color:#e91e63">S{w['sn']}</span>
             </div>""", unsafe_allow_html=True)
         with col2:
             if st.button(
@@ -486,7 +458,7 @@ else:
         st.session_state.sel_week = None
         st.rerun()
 
-    st.markdown(f"## Semana {sw}")
+    st.markdown(f"<h2 style='color:#111827'>Semana {sw}</h2>", unsafe_allow_html=True)
     st.caption(f"{len(w['evs'])} live{'s' if len(w['evs']) > 1 else ''}")
 
     # KPIs linha 1
@@ -519,16 +491,16 @@ else:
     # Barra de resumo
     st.markdown(f"""
     <div class="metric-bar">
-        <div class="metric-item"><div class="m-label">Total Cliques</div><div class="m-value" style="color:#fff">{fmt(w['tc'])}</div></div>
-        <div class="metric-item"><div class="m-label">Pico</div><div class="m-value" style="color:#8b5cf6">{fmt(w['pico'])}</div></div>
+        <div class="metric-item"><div class="m-label">Total Cliques</div><div class="m-value">{fmt(w['tc'])}</div></div>
+        <div class="metric-item"><div class="m-label">Pico</div><div class="m-value" style="color:#e91e63">{fmt(w['pico'])}</div></div>
         <div class="metric-item"><div class="m-label">CTR Ativo</div><div class="m-value" style="color:#22c55e">{pct(w['aCTR'])}</div></div>
         <div class="metric-item"><div class="m-label">CTR Passados</div><div class="m-value" style="color:#f59e0b">{pct(w['pCTR']) if w['pCTR'] > 0 else '–'}</div></div>
-        <div class="metric-item"><div class="m-label">Grupo Ativo</div><div class="m-value" style="color:#8b5cf6">{w['ga']}</div></div>
+        <div class="metric-item"><div class="m-label">Grupo Ativo</div><div class="m-value" style="color:#e91e63">{w['ga']}</div></div>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("#### Lives Individuais")
+    st.markdown('<h4 style="color:#111827;">Lives Individuais</h4>', unsafe_allow_html=True)
 
     # Live cards
     for ev in w["evs"]:
@@ -544,24 +516,24 @@ else:
                     <span style="font-size:15px;font-weight:800;color:{tc}">{ev['label']}</span>
                     <span style="font-size:10px;color:{tc};background:{tc}18;padding:2px 8px;border-radius:6px;font-weight:600">{tl}</span>
                 </div>
-                <span style="font-size:12px;color:#888">{ev['data']}</span>
+                <span style="font-size:12px;color:#6b7280">{ev['data']}</span>
             </div>
             <div class="live-body">
                 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;text-align:center">
-                    <div><div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px">Total Cliques</div><div style="font-size:18px;font-weight:800;color:#fff">{fmt(ev['cliquesTotal'])}</div></div>
-                    <div><div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px">Pico</div><div style="font-size:18px;font-weight:800;color:#8b5cf6">{fmt(ev['pico'])}</div></div>
-                    <div><div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px">CTR Ativo</div><div style="font-size:18px;font-weight:800;color:#22c55e">{pct(est['aCTR'])}</div></div>
-                    <div><div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:0.5px">Vendas</div><div style="font-size:18px;font-weight:800;color:#ec4899">{fmt(ev['vendas'])}</div></div>
+                    <div><div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Total Cliques</div><div style="font-size:18px;font-weight:800;color:#111827">{fmt(ev['cliquesTotal'])}</div></div>
+                    <div><div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Pico</div><div style="font-size:18px;font-weight:800;color:#e91e63">{fmt(ev['pico'])}</div></div>
+                    <div><div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">CTR Ativo</div><div style="font-size:18px;font-weight:800;color:#22c55e">{pct(est['aCTR'])}</div></div>
+                    <div><div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Vendas</div><div style="font-size:18px;font-weight:800;color:#ec4899">{fmt(ev['vendas'])}</div></div>
                 </div>
         """, unsafe_allow_html=True)
 
         if ev["grupos"]:
             n_cols = min(len(ev["grupos"]), 5)
-            grupos_html = f'<div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:600">Grupos</div>'
+            grupos_html = f'<div style="font-size:11px;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700">Grupos</div>'
             grupos_html += f'<div style="display:grid;grid-template-columns:repeat({n_cols},1fr);gap:8px">'
             for g in ev["grupos"]:
                 cls = "ativo" if g["ativo"] else "passivo"
-                nc = "#22c55e" if g["ativo"] else "#777"
+                nc = "#22c55e" if g["ativo"] else "#4b5563"
                 tag = '<span style="font-size:8px;color:#22c55e;background:#22c55e20;padding:1px 5px;border-radius:4px;font-weight:700;margin-left:6px">ATIVO</span>' if g["ativo"] else ""
                 ctr_c = "#22c55e" if g["ativo"] else ("#f59e0b" if g["ctr"] > 20 else "#ef4444")
                 grupos_html += f'''
@@ -569,9 +541,9 @@ else:
                     <div style="display:flex;align-items:center;margin-bottom:6px">
                         <span style="font-size:12px;font-weight:700;color:{nc}">{g['nome']}</span>{tag}
                     </div>
-                    <div style="font-size:11px;color:#bbb;line-height:1.9">
-                        <div>Leads: <strong style="color:#ddd">{fmt(g['leads'])}</strong></div>
-                        <div>Cliques: <strong style="color:#ddd">{fmt(g['cliques'])}</strong></div>
+                    <div style="font-size:11px;color:#6b7280;line-height:1.9">
+                        <div>Leads: <strong style="color:#111827">{fmt(g['leads'])}</strong></div>
+                        <div>Cliques: <strong style="color:#111827">{fmt(g['cliques'])}</strong></div>
                         <div>CTR: <strong style="color:{ctr_c}">{g['ctr']}%</strong></div>
                     </div>
                 </div>'''
@@ -582,4 +554,4 @@ else:
 
 # Footer
 st.markdown("<br><br>", unsafe_allow_html=True)
-st.markdown('<div style="text-align:center;font-size:11px;color:#444;border-top:1px solid #1a1a28;padding-top:16px">Dashboard Lives Semanais · Grupo Rugido · 2026</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:16px">Dashboard Lives Semanais · Grupo Rugido</div>', unsafe_allow_html=True)
