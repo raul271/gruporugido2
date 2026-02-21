@@ -159,7 +159,6 @@ h4 { font-size: 1.1rem; margin-bottom: 1rem; margin-top: 2rem; }
 .styled-table tbody tr:hover {
     background-color: #f3f4f6;
 }
-/* Destaque para o grupo ativo na tabela */
 .active-group-row {
     background-color: #ecfdf5 !important; 
 }
@@ -224,49 +223,20 @@ def fmt(v): return f"{v:,.0f}".replace(",", ".")
 def fmtR(v): return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 def pct(v): return f"{v:.1f}%"
 
+# HTML em linha única para o Streamlit não transformar em Bloco de Código
 def kpi_new_html(label, value, icon_class, icon_name, sub=""):
     sub_html = f'<div class="kpi-sub">{sub}</div>' if sub else ''
-    return f'''
-    <div class="kpi-card-new">
-        <div class="kpi-icon {icon_class}">
-            <i class="{icon_name}"></i>
-        </div>
-        <div class="kpi-content">
-            <div class="kpi-label">{label}</div>
-            <div class="kpi-value">{value}</div>
-            {sub_html}
-        </div>
-    </div>'''
+    return f'<div class="kpi-card-new"><div class="kpi-icon {icon_class}"><i class="{icon_name}"></i></div><div class="kpi-content"><div class="kpi-label">{label}</div><div class="kpi-value">{value}</div>{sub_html}</div></div>'
 
 def generate_groups_table(grupos):
     if not grupos: return "Sem dados de grupos."
-    
-    html = """
-    <table class="styled-table">
-        <thead>
-            <tr>
-                <th>Grupo</th>
-                <th>Leads</th>
-                <th>Cliques</th>
-                <th>CTR</th>
-            </tr>
-        </thead>
-        <tbody>
-    """
+    html = '<table class="styled-table"><thead><tr><th>Grupo</th><th>Leads</th><th>Cliques</th><th>CTR</th></tr></thead><tbody>'
     for g in grupos:
         row_class = "active-group-row" if g["ativo"] else ""
         ctr_val = g["ctr"]
         ctr_class = "ctr-high" if ctr_val >= 40 else ("ctr-med" if ctr_val >= 20 else "ctr-low")
-        
-        html += f"""
-            <tr class="{row_class}">
-                <td>{g['nome']}</td>
-                <td>{fmt(g['leads'])}</td>
-                <td>{fmt(g['cliques'])}</td>
-                <td><span class="ctr-badge {ctr_class}">{pct(ctr_val)}</span></td>
-            </tr>
-        """
-    html += "</tbody></table>"
+        html += f'<tr class="{row_class}"><td>{g["nome"]}</td><td>{fmt(g["leads"])}</td><td>{fmt(g["cliques"])}</td><td><span class="ctr-badge {ctr_class}">{pct(ctr_val)}</span></td></tr>'
+    html += '</tbody></table>'
     return html
 
 def safe_float(v):
@@ -467,8 +437,7 @@ st.markdown("""
 
 status_icon = "🟢" if connected else "🟠"
 status_text = "Planilha Conectada" if connected else "Modo Preview (Conecte a planilha na barra lateral)"
-st.markdown(f'<div class="sub-title">{status_icon} {status_text}</div>', unsafe_allow_html=True)
-st.markdown("<br>", unsafe_allow_html=True)
+st.markdown(f'<div class="sub-title">{status_icon} {status_text}</div><br>', unsafe_allow_html=True)
 
 # ── NAVEGAÇÃO (Abas) ────────────────────────────────────
 nav_cols = st.columns(len(active_weeks) + 1)
@@ -545,12 +514,10 @@ else:
         st.session_state.sel_week = None
         st.rerun()
 
-    st.markdown(f"<h2>Semana {sw} <span style='font-weight:400; font-size:1.2rem; color:#6b7280'>({len(w['evs'])} lives)</span></h2>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(f"<h2>Semana {sw} <span style='font-weight:400; font-size:1.2rem; color:#6b7280'>({len(w['evs'])} lives)</span></h2><br>", unsafe_allow_html=True)
 
     m = w["m"] if isinstance(w["m"], dict) else {}
     
-    # KPIs Linha 1: CORREÇÃO APLICADA AQUI (Atenção aos 5 elementos por tupla)
     cols1 = st.columns(4)
     kpis_s1 = [
         ("Investimento", fmtR(m.get("investimento", 0)), "icon-red", "fa-solid fa-money-bill-wave", ""),
@@ -563,7 +530,6 @@ else:
     
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # KPIs Linha 2
     cols2 = st.columns(4)
     kpis_s2 = [
         ("Leads Entrada", fmt(m.get("leadsEntrada", 0)), "icon-green", "fa-solid fa-user-plus", ""),
@@ -576,15 +542,7 @@ else:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class="metric-bar-new">
-        <div class="mb-item"><div class="mb-label">Total Cliques</div><div class="mb-value">{fmt(w["tc"])}</div></div>
-        <div class="mb-item"><div class="mb-label">Pico Máximo</div><div class="mb-value" style="color:var(--primary-color)">{fmt(w["pico"])}</div></div>
-        <div class="mb-item"><div class="mb-label">CTR Ativo Médio</div><div class="mb-value" style="color:var(--success-color)">{pct(w["aCTR"])}</div></div>
-        <div class="mb-item"><div class="mb-label">CTR Passados Médio</div><div class="mb-value" style="color:var(--warning-color)">{pct(w["pCTR"]) if w["pCTR"] > 0 else "–"}</div></div>
-        <div class="mb-item"><div class="mb-label">Grupo Ativo</div><div class="mb-value" style="color:var(--primary-color)">{w["ga"]}</div></div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-bar-new"><div class="mb-item"><div class="mb-label">Total Cliques</div><div class="mb-value">{fmt(w["tc"])}</div></div><div class="mb-item"><div class="mb-label">Pico Máximo</div><div class="mb-value" style="color:var(--primary-color)">{fmt(w["pico"])}</div></div><div class="mb-item"><div class="mb-label">CTR Ativo Médio</div><div class="mb-value" style="color:var(--success-color)">{pct(w["aCTR"])}</div></div><div class="mb-item"><div class="mb-label">CTR Passados Médio</div><div class="mb-value" style="color:var(--warning-color)">{pct(w["pCTR"]) if w["pCTR"] > 0 else "–"}</div></div><div class="mb-item"><div class="mb-label">Grupo Ativo</div><div class="mb-value" style="color:var(--primary-color)">{w["ga"]}</div></div></div>', unsafe_allow_html=True)
 
     st.markdown("<h4>Detalhamento das Lives</h4>", unsafe_allow_html=True)
 
@@ -593,15 +551,7 @@ else:
         expander_title = f"{ev['label']}  |  {ev['data']}  |  Vendas: {fmt(ev['vendas'])}"
         
         with st.expander(expander_title, expanded=(i==0)):
-            st.markdown(f"""
-            <div class="live-summary-metrics">
-                <div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;font-weight:600">Tipo</div><div style="font-weight:700;color:{tipo_badge_color}">{ev["tipo"]}</div></div>
-                <div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;font-weight:600">Total Cliques</div><div style="font-weight:700">{fmt(ev["cliquesTotal"])}</div></div>
-                <div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;font-weight:600">Pico</div><div style="font-weight:700;color:var(--primary-color)">{fmt(ev["pico"])}</div></div>
-                <div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;font-weight:600">Vendas</div><div style="font-weight:700;color:var(--primary-color)">{fmt(ev["vendas"])}</div></div>
-            </div>
-            """, unsafe_allow_html=True)
-            
+            st.markdown(f'<div class="live-summary-metrics"><div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;font-weight:600">Tipo</div><div style="font-weight:700;color:{tipo_badge_color}">{ev["tipo"]}</div></div><div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;font-weight:600">Total Cliques</div><div style="font-weight:700">{fmt(ev["cliquesTotal"])}</div></div><div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;font-weight:600">Pico</div><div style="font-weight:700;color:var(--primary-color)">{fmt(ev["pico"])}</div></div><div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;font-weight:600">Vendas</div><div style="font-weight:700;color:var(--primary-color)">{fmt(ev["vendas"])}</div></div></div>', unsafe_allow_html=True)
             st.markdown('**Performance por Grupo:**')
             st.markdown(generate_groups_table(ev["grupos"]), unsafe_allow_html=True)
 
