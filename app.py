@@ -9,7 +9,8 @@ from io import StringIO
 st.set_page_config(
     page_title="Dashboard Lives Semanais — Grupo Rugido",
     page_icon="📊",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
 # ── CSS / ESTILO ULTRA-COMPACTO E ALINHADO ──────────────
@@ -34,10 +35,9 @@ st.markdown("""
 
 .stApp { background-color: var(--bg-light); font-family: 'Inter', sans-serif; }
 header, [data-testid="stHeader"] { background-color: transparent !important; }
+[data-testid="stSidebar"] { background-color: var(--bg-white); border-right: 1px solid var(--border-color); }
 #MainMenu, footer, [data-testid="stDecoration"] { display: none !important; }
 .block-container { padding-top: 1.5rem !important; padding-bottom: 1rem !important; max-width: 1200px !important; }
-/* Esconder o botão padrão de abrir sidebar caso ele tente aparecer */
-[data-testid="collapsedControl"] { display: none !important; }
 
 h1, h2, h3, h4 { color: var(--text-primary); font-weight: 700; line-height: 1.2; margin: 0; }
 h4 { font-size: 1rem; margin-bottom: 0.8rem; margin-top: 1.5rem; }
@@ -439,22 +439,16 @@ if st.session_state.sel_week is None:
     
     st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    col_f, col_g = st.columns([1, 1])
-    with col_f:
-        st.markdown('<h4>Funil de Conversão</h4>', unsafe_allow_html=True)
-        funnel_labels = ['Captação (Ads)', 'Entraram no GP', 'Ficaram no GP', 'Cliques no Link', 'Pico nas Lives', 'Vendas']
-        ficaram_grupo = tle - tls
-        funnel_values = [tla, tle, ficaram_grupo, total_cliques_all, total_pico_all, tv_all]
-        
-        fig_funnel = go.Figure(go.Funnel(
-            y=funnel_labels, x=funnel_values,
-            textinfo="value+percent initial",
-            marker=dict(color=["#3b82f6", "#22c55e", "#10b981", "#f59e0b", "#8b5cf6", "#e91e63"])
-        ))
-        fig_funnel.update_layout(**PLOT_LAYOUT, height=280)
-        st.plotly_chart(fig_funnel, use_container_width=True, config=dict(displayModeBar=False))
+    col_g1, col_g2 = st.columns([1, 1])
+    with col_g1:
+        st.markdown('<h4>Cliques por Semana</h4>', unsafe_allow_html=True)
+        fig1 = go.Figure()
+        fig1.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ac"] for w in weeks_data], name="Ativo", marker_color="#22c55e"))
+        fig1.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["pc"] for w in weeks_data], name="Passados", marker_color="#f59e0b"))
+        fig1.update_layout(**PLOT_LAYOUT, barmode="stack", height=280) 
+        st.plotly_chart(fig1, use_container_width=True, config=dict(displayModeBar=False))
     
-    with col_g:
+    with col_g2:
         st.markdown('<h4>CTR do Grupo Principal: LVP vs LVG</h4>', unsafe_allow_html=True)
         fig2 = go.Figure()
         fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ctr_lvp"] for w in weeks_data], name="LVP (Prospecção)", marker_color="#3b82f6", text=[pct(w["ctr_lvp"]) if w["ctr_lvp"] > 0 else "" for w in weeks_data], textposition="auto"))
@@ -517,17 +511,39 @@ else:
 
     st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    st.markdown('<h4>Funil de Conversão da Semana</h4>', unsafe_allow_html=True)
+    # --- NOVO GRÁFICO: JORNADA DE CONVERSÃO EM LINHA (HORIZONTAL) ---
+    st.markdown('<h4>Jornada de Conversão da Semana</h4>', unsafe_allow_html=True)
     funnel_labels = ['Captação (Ads)', 'Entraram no GP', 'Ficaram no GP', 'Cliques no Link', 'Pico nas Lives', 'Vendas']
     ficaram_grupo = w['le'] - w['ls']
     funnel_values = [w['la'], w['le'], ficaram_grupo, w['tc'], w['pico'], w['vt']]
     
-    fig_funnel_sem = go.Figure(go.Funnel(
-        y=funnel_labels, x=funnel_values,
-        textinfo="value+percent initial",
-        marker=dict(color=["#3b82f6", "#22c55e", "#10b981", "#f59e0b", "#8b5cf6", "#e91e63"])
+    max_val = w['la'] if w['la'] > 0 else 1
+    # Formata o texto para exibir o número absoluto e a porcentagem embaixo
+    text_vals = [f"<b>{v:,.0f}</b><br>({(v/max_val)*100:.1f}%)" for v in funnel_values]
+
+    fig_funnel_sem = go.Figure()
+    fig_funnel_sem.add_trace(go.Scatter(
+        x=funnel_labels, 
+        y=funnel_values,
+        mode='lines+markers+text',
+        text=text_vals,
+        textposition='top center',
+        textfont=dict(size=12, color='#111827'),
+        marker=dict(size=12, color='#e91e63', line=dict(width=2, color='white')),
+        line=dict(width=4, color='#e91e63', shape='spline'), # Spline deixa a curva suave
+        fill='tozeroy', # Preenche a área abaixo da linha
+        fillcolor='rgba(233, 30, 99, 0.08)'
     ))
-    fig_funnel_sem.update_layout(**PLOT_LAYOUT, height=280)
+    
+    fig_funnel_sem.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter", color="#6b7280", size=12),
+        margin=dict(l=20, r=20, t=40, b=20),
+        height=260,
+        yaxis=dict(showgrid=False, zeroline=False, visible=False, range=[0, max(funnel_values)*1.25]), # Esconde o eixo Y e dá margem pro texto
+        xaxis=dict(showgrid=False, zeroline=False)
+    )
     st.plotly_chart(fig_funnel_sem, use_container_width=True, config=dict(displayModeBar=False))
     
     st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
