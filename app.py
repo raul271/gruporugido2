@@ -234,7 +234,6 @@ def get_group_val(row, metric_type, g):
 def process_semanal(df):
     records = []
     for _, row in df.iterrows():
-        # Lendo "Microciclo" ou "Semana" para manter retrocompatibilidade
         s = int(safe_float(get_val(row, ["Microciclo", "Semana"])))
         if s <= 0: continue
         inv = safe_float(get_val(row, ["Investimento (R$)", "Investimento"]))
@@ -254,7 +253,6 @@ def process_lives(df):
     lives = []
     if df is None: return lives
     for _, row in df.iterrows():
-        # Lendo "Microciclo" ou "Semana"
         semana = int(safe_float(get_val(row, ["Microciclo", "Semana"])))
         tipo = str(get_val(row, "Tipo")).strip().upper()
         label = str(get_val(row, "Label")).strip()
@@ -338,7 +336,10 @@ if semanal is None:
 
 # ── CÁLCULOS GERAIS ─────────────────────────────────────
 sem_map = {s["semana"]: s for s in semanal}
-active_weeks = sorted(set(l["semana"] for l in lives))
+
+# --- A REGRA DE OURO DO MICROCLICO ---
+# Só cria a aba se o Investimento for maior que zero na aba Semanal
+active_weeks = sorted([s for s, data in sem_map.items() if data.get("investimento", 0) > 0])
 
 weeks_data = []
 for s in active_weeks:
@@ -370,13 +371,18 @@ for s in active_weeks:
     ativo_cliques_lvg = sum(live['ativo_cliques'] for live in lvg_lives)
     ctr_lvg = round((ativo_cliques_lvg / ativo_leads_lvg) * 100, 1) if ativo_leads_lvg > 0 else 0.0
     
+    # Rótulo inteligente caso ainda não existam lives para aquele microciclo
+    lives_label_str = " + ".join(l["label"] for l in wl)
+    if not lives_label_str:
+        lives_label_str = "Fase de Captação"
+        
     weeks_data.append(dict(
         sn=s, **st_, tc=tc, pico=max((l["pico"] for l in wl), default=0),
         tne=tne, cpne=cpne, 
         ctr_lvp=ctr_lvp, ctr_lvg=ctr_lvg, captacao=captacao,
         inv=inv, la=la, le=le, ls=ls_, cpl=cpl, txE=round(txE, 1), txS=round(txS, 1),
         vt=tv + m.get("vendas", 0),
-        lives_label=" + ".join(l["label"] for l in wl), evs=wl, m=m
+        lives_label=lives_label_str, evs=wl, m=m
     ))
 
 ti = sum(w["inv"] for w in weeks_data)
