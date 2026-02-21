@@ -34,7 +34,7 @@ header, [data-testid="stHeader"] { background-color: transparent !important; }
 .kpi-card .value { font-size: 24px; font-weight: 800; margin-bottom: 2px; color: #111827; }
 .kpi-card .sub { font-size: 11px; color: #9ca3af; }
 
-/* Marca (Estilo Referência) */
+/* Marca */
 .brand { display: flex; align-items: center; gap: 8px; margin-bottom: -4px; }
 .brand-text { font-size: 28px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px; }
 .brand-highlight { color: #e91e63; }
@@ -63,20 +63,35 @@ header, [data-testid="stHeader"] { background-color: transparent !important; }
 .metric-item .m-label { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
 .metric-item .m-value { font-size: 18px; font-weight: 800; color: #111827; }
 
-/* Botões do tab */
-div[data-testid="stHorizontalBlock"] button {
+/* ========================================================= */
+/* ESTILOS DOS BOTÕES COM ESTADO ATIVO/INATIVO INTELIGENTE   */
+/* ========================================================= */
+
+/* Botão Secundário (Aba que NÃO está selecionada) */
+button[kind="secondary"] {
     background: #ffffff !important; color: #374151 !important;
     border: 1px solid #d1d5db !important; border-radius: 8px !important;
     font-weight: 700 !important; font-size: 13px !important;
     box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
-div[data-testid="stHorizontalBlock"] button:hover {
+button[kind="secondary"]:hover {
     border-color: #e91e63 !important; color: #e91e63 !important; background: #fdf2f8 !important;
 }
 
+/* Botão Primário (Aba ATUAL que está selecionada) */
+button[kind="primary"] {
+    background: #fdf2f8 !important; /* Fundo rosa claro constante */
+    color: #e91e63 !important;      /* Texto rosa constante */
+    border: 1px solid #e91e63 !important; /* Borda rosa constante */
+    border-radius: 8px !important;
+    font-weight: 700 !important; font-size: 13px !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+/* ========================================================= */
+
 /* Esconder elementos padrão do Streamlit e Ajustar Padding do Topo */
 #MainMenu, footer, [data-testid="stDecoration"] { display: none !important; }
-.block-container { padding-top: 4rem !important; max-width: 1000px !important; } /* AQUI CORRIGE O TÍTULO TAMPADO */
+.block-container { padding-top: 4rem !important; max-width: 1000px !important; }
 
 /* Plotly background fix */
 .js-plotly-plot .plotly .main-svg { background: transparent !important; }
@@ -137,7 +152,7 @@ def load_data(sheet_id):
     if sem_df is None:
         return None, None
 
-    # Lives e Grupos (Correção da Semana 1)
+    # Lives e Grupos
     lives_url = f"{base}&sheet=Lives+e+Grupos"
     liv_df = parse_csv_from_url(lives_url)
 
@@ -224,7 +239,7 @@ def calc_stats(grupos):
         ga=at[0]["nome"] if at else "-"
     )
 
-# ── PLOTLY LAYOUT (Adaptado pro Tema Claro) ────────────
+# ── PLOTLY LAYOUT ────────────
 PLOT_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
@@ -344,15 +359,25 @@ status = "🟢 Conectado ao Google Sheets" if connected else "📋 Dados locais 
 st.markdown(f'<div class="sub-title">{status}</div>', unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ── NAV ────────────────────────────────────────────────
+# ── NAV (Logica de Abas Selecionadas) ──────────────────
 nav_cols = st.columns(len(active_weeks) + 1)
+
+# Botão Visão Geral
 with nav_cols[0]:
-    if st.button("📊 Visão Geral", use_container_width=True):
+    is_overview_active = st.session_state.sel_week is None
+    btn_type = "primary" if is_overview_active else "secondary"
+    
+    if st.button("📊 Visão Geral", use_container_width=True, type=btn_type):
         st.session_state.sel_week = None
         st.rerun()
+
+# Botões das Semanas
 for i, s in enumerate(active_weeks):
     with nav_cols[i + 1]:
-        if st.button(f"S{s}", use_container_width=True):
+        is_week_active = st.session_state.sel_week == s
+        btn_type = "primary" if is_week_active else "secondary"
+        
+        if st.button(f"S{s}", use_container_width=True, type=btn_type):
             st.session_state.sel_week = s
             st.rerun()
 
@@ -439,7 +464,7 @@ if st.session_state.sel_week is None:
         with col2:
             if st.button(
                 f"**{w['lives_label']}** · {w['ga']} ativo · Invest: {fmtR(w['inv'])} · CPL: {fmtR(w['cpl']) if w['la'] > 0 else '–'} · Entrada: {pct(w['txE']) if w['la'] > 0 else '–'} · Saída: {pct(w['txS']) if w['le'] > 0 else '–'} · Vendas: {fmt(w['vt'])}",
-                key=f"week_{w['sn']}", use_container_width=True
+                key=f"week_list_{w['sn']}", use_container_width=True
             ):
                 st.session_state.sel_week = w["sn"]
                 st.rerun()
