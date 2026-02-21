@@ -234,7 +234,8 @@ def get_group_val(row, metric_type, g):
 def process_semanal(df):
     records = []
     for _, row in df.iterrows():
-        s = int(safe_float(get_val(row, "Semana")))
+        # Lendo "Microciclo" ou "Semana" para manter retrocompatibilidade
+        s = int(safe_float(get_val(row, ["Microciclo", "Semana"])))
         if s <= 0: continue
         inv = safe_float(get_val(row, ["Investimento (R$)", "Investimento"]))
         la = safe_float(get_val(row, "Leads Ads"))
@@ -253,7 +254,8 @@ def process_lives(df):
     lives = []
     if df is None: return lives
     for _, row in df.iterrows():
-        semana = int(safe_float(get_val(row, "Semana")))
+        # Lendo "Microciclo" ou "Semana"
+        semana = int(safe_float(get_val(row, ["Microciclo", "Semana"])))
         tipo = str(get_val(row, "Tipo")).strip().upper()
         label = str(get_val(row, "Label")).strip()
         if not semana or not tipo or not label or tipo == "NAN": continue
@@ -463,7 +465,7 @@ if st.session_state.sel_week is None:
         fig2.update_yaxes(ticksuffix="%")
         st.plotly_chart(fig2, use_container_width=True, config=dict(displayModeBar=False))
 
-    st.markdown('<h4>Resumo Semanal</h4>', unsafe_allow_html=True)
+    st.markdown('<h4>Resumo</h4>', unsafe_allow_html=True)
     for w in weeks_data:
         c1, c2 = st.columns([1, 15])
         with c1:
@@ -483,7 +485,6 @@ else:
     w = next((w for w in weeks_data if w["sn"] == sw), None)
     if w is None: st.error("Microciclo não encontrado"); st.stop()
 
-    # --- DATA DE CAPTAÇÃO AO LADO DO TÍTULO ---
     date_badge = f"<span style='font-size:0.9rem; font-weight:500; color:var(--text-secondary); margin-left: 12px; border-left: 2px solid var(--border-color); padding-left: 12px;'><i class='fa-regular fa-calendar'></i> {w['captacao']}</span>" if w['captacao'] else ""
 
     st.markdown(f'''
