@@ -54,7 +54,7 @@ h4 { font-size: 1rem; margin-bottom: 0.8rem; margin-top: 1.5rem; }
     display: flex;
     align-items: center; 
     gap: 12px;
-    height: 64px; /* ALTURA FIXA BEM COMPACTA */
+    height: 64px; 
 }
 .kpi-icon {
     width: 36px; height: 36px;
@@ -141,17 +141,36 @@ h4 { font-size: 1rem; margin-bottom: 0.8rem; margin-top: 1.5rem; }
 .ctr-med { background-color: #ffedd5; color: var(--warning-color); }
 .ctr-low { background-color: #fee2e2; color: var(--danger-color); }
 
-/* --- BOTÕES DE NAVEGAÇÃO --- */
+/* --- BOTÕES DE NAVEGAÇÃO (TABS COMPACTAS E CORES INVERTIDAS) --- */
 button[kind="secondary"] {
-    background: var(--bg-white) !important; color: var(--text-primary) !important;
-    border: 1px solid var(--border-color) !important; border-radius: 6px !important;
-    font-weight: 600 !important; font-size: 12px !important; padding: 4px 10px !important;
+    background: var(--bg-white) !important; 
+    color: var(--text-secondary) !important;
+    border: 1px solid var(--border-color) !important; 
+    border-radius: 6px !important;
+    font-weight: 600 !important; 
+    font-size: 13px !important; 
+    padding: 6px 16px !important;
 }
-button[kind="secondary"]:hover { border-color: var(--primary-color) !important; color: var(--primary-color) !important; background: #fff1f7 !important; }
+button[kind="secondary"]:hover { 
+    border-color: var(--primary-color) !important; 
+    color: var(--primary-color) !important; 
+    background: #fff1f7 !important; 
+}
+/* BOTÃO ATIVO (ROSA COM TEXTO BRANCO) */
 button[kind="primary"] {
-    background: #fff1f7 !important; color: var(--primary-color) !important;
-    border: 1px solid var(--primary-color) !important; border-radius: 6px !important;
-    font-weight: 700 !important; font-size: 12px !important; padding: 4px 10px !important;
+    background: var(--primary-color) !important; 
+    color: #ffffff !important;
+    border: 1px solid var(--primary-color) !important; 
+    border-radius: 6px !important;
+    font-weight: 700 !important; 
+    font-size: 13px !important; 
+    padding: 6px 16px !important;
+    box-shadow: 0 2px 4px rgba(233, 30, 99, 0.2);
+}
+button[kind="primary"]:hover {
+    background: #d81b60 !important;
+    border-color: #d81b60 !important;
+    color: #ffffff !important;
 }
 
 /* --- TÍTULO DA SEÇÃO DA SEMANA --- */
@@ -194,7 +213,6 @@ def fmt(v): return f"{v:,.0f}".replace(",", ".")
 def fmtR(v): return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 def pct(v): return f"{v:.1f}%"
 
-# HTML em linha única para os cards
 def kpi_new_html(label, value, icon_class, icon_name):
     return f'<div class="kpi-card-new"><div class="kpi-icon {icon_class}"><i class="{icon_name}"></i></div><div class="kpi-content"><div class="kpi-label">{label}</div><div class="kpi-value">{value}</div></div></div>'
 
@@ -341,8 +359,6 @@ with st.sidebar:
 
     if connect and sheet_id: st.session_state.sheet_id = sheet_id
     if refresh: st.cache_data.clear()
-    st.markdown("---")
-    st.caption("Dashboard v2.2 - Slim Final")
 
 # ── CARREGAMENTO DE DADOS ───────────────────────────────
 @st.cache_data(ttl=120, show_spinner=False)
@@ -408,8 +424,13 @@ status_text = "Conectado" if connected else "Preview"
 st.markdown(f'<div class="sub-title">{status_icon} {status_text}</div>', unsafe_allow_html=True)
 st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
 
-# ── NAVEGAÇÃO SUPERIOR ──────────────────────────────────
-nav_cols = st.columns(len(active_weeks) + 1)
+# ── NAVEGAÇÃO SUPERIOR (ABAS COMPACTAS À ESQUERDA) ──────
+num_weeks = len(active_weeks)
+# Lógica para garantir que os botões fiquem alinhados à esquerda:
+# A última coluna funciona como um "espaçador fantasma" para empurrar o resto.
+spacer_width = max(1, 10 - (1.2 + num_weeks * 0.8)) 
+nav_cols = st.columns([1.2] + [0.8] * num_weeks + [spacer_width])
+
 with nav_cols[0]:
     btn_type = "primary" if st.session_state.sel_week is None else "secondary"
     if st.button("📊 Geral", use_container_width=True, type=btn_type):
@@ -422,13 +443,13 @@ for i, s in enumerate(active_weeks):
         if st.button(f"S{s}", use_container_width=True, type=btn_type):
             st.session_state.sel_week = s
             st.rerun()
-st.markdown("<div style='margin-bottom: 4px'></div>", unsafe_allow_html=True)
+
+st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════
 # TELA: VISÃO GERAL
 # ════════════════════════════════════════════════════════
 if st.session_state.sel_week is None:
-    # Título da Seção
     st.markdown('<div class="week-header"><div class="week-title-text"><i class="fa-solid fa-chart-line" style="color:var(--primary-color); margin-right:8px"></i> Visão Geral do Lançamento</div><div class="week-subtitle">Acumulado de todas as semanas</div></div>', unsafe_allow_html=True)
 
     cols = st.columns(4)
@@ -480,7 +501,6 @@ else:
     w = next((w for w in weeks_data if w["sn"] == sw), None)
     if w is None: st.error("Semana não encontrada"); st.stop()
 
-    # NOVO TÍTULO DA SEMANA (Substituindo o botão Voltar)
     st.markdown(f'''
     <div class="week-header">
         <div class="week-title-text"><i class="fa-solid fa-calendar-day" style="color:var(--primary-color); margin-right:8px"></i> Semana {sw}</div>
@@ -528,4 +548,4 @@ else:
 
 # ── RODAPÉ ──────────────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
-st.markdown('<div style="text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #e2e8f0;padding-top:16px">Grupo Rugido · Dashboard v3.0 Ultra-Slim</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #e2e8f0;padding-top:16px">Grupo Rugido · Dashboard de Performance</div>', unsafe_allow_html=True)
