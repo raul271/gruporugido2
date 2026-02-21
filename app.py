@@ -243,7 +243,6 @@ def process_semanal(df):
         vt = safe_float(get_val(row, "Vendas Total"))
         rec = safe_float(get_val(row, ["Receita (R$)", "Receita"]))
         
-        # --- NOVA LÓGICA: PUXAR DATA DE CAPTAÇÃO ---
         captacao = str(get_val(row, ["Captação", "Captacao", "Capitação"])).strip()
         if str(captacao) in ["0", "0.0", "nan", "None"]: captacao = ""
         
@@ -356,7 +355,7 @@ for s in active_weeks:
     txE = (le / la) * 100 if la > 0 else 0
     txS = (ls_ / le) * 100 if le > 0 else 0
     cpne = inv / tne if tne > 0 else 0 
-    captacao = m.get("captacao", "") # Puxa a data de captação
+    captacao = m.get("captacao", "")
 
     lvp_lives = [live for live in wl if live['tipo'] == 'LVP']
     lvg_lives = [live for live in wl if live['tipo'] == 'LVG']
@@ -420,7 +419,7 @@ with nav_cols[0]:
 for i, s in enumerate(active_weeks):
     with nav_cols[i + 1]:
         btn_type = "primary" if st.session_state.sel_week == s else "secondary"
-        if st.button(f"S{s}", use_container_width=True, type=btn_type):
+        if st.button(f"MC {s}", use_container_width=True, type=btn_type):
             st.session_state.sel_week = s
             st.rerun()
 
@@ -430,7 +429,7 @@ st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
 # TELA: VISÃO GERAL
 # ════════════════════════════════════════════════════════
 if st.session_state.sel_week is None:
-    st.markdown('<div class="week-header"><div class="week-title-text"><i class="fa-solid fa-chart-line" style="color:var(--primary-color); margin-right:8px"></i> Visão Geral do Lançamento</div><div class="week-subtitle">Acumulado de todas as semanas</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="week-header"><div class="week-title-text"><i class="fa-solid fa-chart-line" style="color:var(--primary-color); margin-right:8px"></i> Visão Geral do Lançamento</div><div class="week-subtitle">Acumulado de todos os microciclos</div></div>', unsafe_allow_html=True)
 
     cols = st.columns(6)
     kpis_overview = [
@@ -448,24 +447,18 @@ if st.session_state.sel_week is None:
 
     col_f, col_g = st.columns([1, 1])
     with col_f:
-        st.markdown('<h4>Funil de Conversão</h4>', unsafe_allow_html=True)
-        funnel_labels = ['Captação (Ads)', 'Entraram no GP', 'Ficaram no GP', 'Cliques no Link', 'Pico nas Lives', 'Vendas']
-        ficaram_grupo = tle - tls
-        funnel_values = [tla, tle, ficaram_grupo, total_cliques_all, total_pico_all, tv_all]
-        
-        fig_funnel = go.Figure(go.Funnel(
-            y=funnel_labels, x=funnel_values,
-            textinfo="value+percent initial",
-            marker=dict(color=["#3b82f6", "#22c55e", "#10b981", "#f59e0b", "#8b5cf6", "#e91e63"])
-        ))
-        fig_funnel.update_layout(**PLOT_LAYOUT, height=280)
-        st.plotly_chart(fig_funnel, use_container_width=True, config=dict(displayModeBar=False))
+        st.markdown('<h4>Cliques por Microciclo</h4>', unsafe_allow_html=True)
+        fig1 = go.Figure()
+        fig1.add_trace(go.Bar(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["ac"] for w in weeks_data], name="Ativo", marker_color="#22c55e"))
+        fig1.add_trace(go.Bar(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["pc"] for w in weeks_data], name="Passados", marker_color="#f59e0b"))
+        fig1.update_layout(**PLOT_LAYOUT, barmode="stack", height=280) 
+        st.plotly_chart(fig1, use_container_width=True, config=dict(displayModeBar=False))
     
     with col_g:
         st.markdown('<h4>CTR do Grupo Principal: LVP vs LVG</h4>', unsafe_allow_html=True)
         fig2 = go.Figure()
-        fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ctr_lvp"] for w in weeks_data], name="LVP (Prospecção)", marker_color="#3b82f6", text=[pct(w["ctr_lvp"]) if w["ctr_lvp"] > 0 else "" for w in weeks_data], textposition="auto"))
-        fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ctr_lvg"] for w in weeks_data], name="LVG (Conteúdo)", marker_color="#f59e0b", text=[pct(w["ctr_lvg"]) if w["ctr_lvg"] > 0 else "" for w in weeks_data], textposition="auto"))
+        fig2.add_trace(go.Bar(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["ctr_lvp"] for w in weeks_data], name="LVP (Prospecção)", marker_color="#3b82f6", text=[pct(w["ctr_lvp"]) if w["ctr_lvp"] > 0 else "" for w in weeks_data], textposition="auto"))
+        fig2.add_trace(go.Bar(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["ctr_lvg"] for w in weeks_data], name="LVG (Conteúdo)", marker_color="#f59e0b", text=[pct(w["ctr_lvg"]) if w["ctr_lvg"] > 0 else "" for w in weeks_data], textposition="auto"))
         fig2.update_layout(**PLOT_LAYOUT, barmode="group", height=280) 
         fig2.update_yaxes(ticksuffix="%")
         st.plotly_chart(fig2, use_container_width=True, config=dict(displayModeBar=False))
@@ -474,9 +467,8 @@ if st.session_state.sel_week is None:
     for w in weeks_data:
         c1, c2 = st.columns([1, 15])
         with c1:
-            st.markdown(f'<div style="background:#fff1f7;border-radius:6px;height:32px;display:flex;align-items:center;justify-content:center;border:1px solid #fce7f3"><span style="font-size:13px;font-weight:700;color:#e91e63">S{w["sn"]}</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="background:#fff1f7;border-radius:6px;height:32px;display:flex;align-items:center;justify-content:center;border:1px solid #fce7f3"><span style="font-size:13px;font-weight:700;color:#e91e63">MC {w["sn"]}</span></div>', unsafe_allow_html=True)
         with c2:
-            # Mostra o período de captação também no resumo da visão geral
             cap_resumo = f"Captação: {w['captacao']}  |  " if w['captacao'] else ""
             label = f"{w['lives_label']}  |  {cap_resumo}Novos: {fmt(w['tne'])}  |  CPNE: {fmtR(w['cpne'])}  |  Vendas: {fmt(w['vt'])}"
             if st.button(label, key=f"week_list_{w['sn']}", use_container_width=True, type="secondary"):
@@ -484,20 +476,22 @@ if st.session_state.sel_week is None:
                 st.rerun()
 
 # ════════════════════════════════════════════════════════
-# TELA: DETALHE DA SEMANA
+# TELA: DETALHE DO MICROCICLO
 # ════════════════════════════════════════════════════════
 else:
     sw = st.session_state.sel_week
     w = next((w for w in weeks_data if w["sn"] == sw), None)
-    if w is None: st.error("Semana não encontrada"); st.stop()
+    if w is None: st.error("Microciclo não encontrado"); st.stop()
 
-    # --- INSERINDO A DATA DE CAPTAÇÃO NO TÍTULO ---
-    cap_text = f"<span style='margin-right: 15px;'><i class='fa-regular fa-calendar' style='color:var(--primary-color); margin-right:4px'></i> Captação: {w['captacao']}</span>" if w['captacao'] else ""
+    # --- DATA DE CAPTAÇÃO AO LADO DO TÍTULO ---
+    date_badge = f"<span style='font-size:0.9rem; font-weight:500; color:var(--text-secondary); margin-left: 12px; border-left: 2px solid var(--border-color); padding-left: 12px;'><i class='fa-regular fa-calendar'></i> {w['captacao']}</span>" if w['captacao'] else ""
 
     st.markdown(f'''
     <div class="week-header">
-        <div class="week-title-text"><i class="fa-solid fa-bullseye" style="color:var(--primary-color); margin-right:8px"></i> Semana {sw}</div>
-        <div class="week-subtitle">{cap_text}{len(w['evs'])} live(s) analisada(s)</div>
+        <div class="week-title-text" style="display:flex; align-items:center;">
+            <i class="fa-solid fa-bullseye" style="color:var(--primary-color); margin-right:8px"></i> Microciclo {sw} {date_badge}
+        </div>
+        <div class="week-subtitle">{len(w['evs'])} live(s) analisada(s)</div>
     </div>
     ''', unsafe_allow_html=True)
 
@@ -524,7 +518,7 @@ else:
         ("Taxa Entrada", pct(w["txE"]) if w["la"] > 0 else "–", "icon-green", "fa-solid fa-percentage"),
         ("Taxa de Saída", pct(w["txS"]) if w["le"] > 0 else "–", "icon-orange", "fa-solid fa-user-minus"),
         ("Total Cliques", fmt(w["tc"]), "icon-blue", "fa-solid fa-pointer"),
-        ("Vendas Semana", fmt(w["vt"]), "icon-pink", "fa-solid fa-ticket-alt"),
+        ("Vendas do MC", fmt(w["vt"]), "icon-pink", "fa-solid fa-ticket-alt"),
     ]
     for col, (l, v, ic, iname) in zip(cols2, kpis_s2):
         with col: st.markdown(kpi_new_html(l, v, ic, iname), unsafe_allow_html=True)
