@@ -66,8 +66,6 @@ header, [data-testid="stHeader"] { background-color: transparent !important; }
 /* ========================================================= */
 /* ESTILOS DOS BOTÕES COM ESTADO ATIVO/INATIVO INTELIGENTE   */
 /* ========================================================= */
-
-/* Botão Secundário (Aba que NÃO está selecionada) */
 button[kind="secondary"] {
     background: #ffffff !important; color: #374151 !important;
     border: 1px solid #d1d5db !important; border-radius: 8px !important;
@@ -77,23 +75,18 @@ button[kind="secondary"] {
 button[kind="secondary"]:hover {
     border-color: #e91e63 !important; color: #e91e63 !important; background: #fdf2f8 !important;
 }
-
-/* Botão Primário (Aba ATUAL que está selecionada) */
 button[kind="primary"] {
-    background: #fdf2f8 !important; /* Fundo rosa claro constante */
-    color: #e91e63 !important;      /* Texto rosa constante */
-    border: 1px solid #e91e63 !important; /* Borda rosa constante */
+    background: #fdf2f8 !important; 
+    color: #e91e63 !important;      
+    border: 1px solid #e91e63 !important; 
     border-radius: 8px !important;
     font-weight: 700 !important; font-size: 13px !important;
     box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 /* ========================================================= */
 
-/* Esconder elementos padrão do Streamlit e Ajustar Padding do Topo */
 #MainMenu, footer, [data-testid="stDecoration"] { display: none !important; }
 .block-container { padding-top: 4rem !important; max-width: 1000px !important; }
-
-/* Plotly background fix */
 .js-plotly-plot .plotly .main-svg { background: transparent !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -147,12 +140,10 @@ def parse_csv_from_url(url):
 def load_data(sheet_id):
     base = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
 
-    # Semanal
     sem_df = parse_csv_from_url(f"{base}&sheet=Semanal")
     if sem_df is None:
         return None, None
 
-    # Lives e Grupos
     lives_url = f"{base}&sheet=Lives+e+Grupos"
     liv_df = parse_csv_from_url(lives_url)
 
@@ -212,7 +203,15 @@ def process_lives(df):
         for g in range(1, MAX_GP + 1):
             leads = safe_float(row.get(f"Leads GP{g}", 0))
             cliques = safe_float(row.get(f"Cliques GP{g}", 0))
-            ctr = safe_float(row.get(f"CTR GP{g}", 0))
+            
+            # --- NOVA LÓGICA DE CÁLCULO DE CTR AUTOMÁTICO ---
+            # Calcula o CTR baseando-se unicamente nos leads que estavam no grupo no momento
+            if leads > 0:
+                ctr = round((cliques / leads) * 100, 1)
+            else:
+                ctr = 0.0
+            # ------------------------------------------------
+            
             if leads > 0 or cliques > 0:
                 grupos.append(dict(nome=f"GP{g}", leads=leads, cliques=cliques, ctr=ctr, ativo=f"GP{g}" == ga))
         lives.append(dict(
@@ -295,22 +294,14 @@ if sid:
         st.stop()
     connected = True
 else:
-    # Default data
+    # Default data preview
     semanal = [
         dict(semana=1, investimento=0, leadsAds=0, leadsEntrada=0, leadsSaida=0, vendas=0, receita=0),
         dict(semana=2, investimento=0, leadsAds=0, leadsEntrada=0, leadsSaida=0, vendas=0, receita=0),
-        dict(semana=3, investimento=0, leadsAds=0, leadsEntrada=0, leadsSaida=0, vendas=0, receita=0),
-        dict(semana=4, investimento=0, leadsAds=0, leadsEntrada=0, leadsSaida=0, vendas=0, receita=0),
     ]
     lives = [
         dict(semana=1, tipo="LVP", label="LVP", data="27/01", cliquesTotal=203, pico=261, vendas=0,
-             grupos=[dict(nome="GP1", leads=274, cliques=203, ctr=74.09, ativo=True)]),
-        dict(semana=2, tipo="LVP", label="LVP", data="03/02", cliquesTotal=648, pico=249, vendas=0,
-             grupos=[dict(nome="GP1", leads=226, cliques=98, ctr=43.36, ativo=False),
-                     dict(nome="GP2", leads=460, cliques=357, ctr=77.61, ativo=True)]),
-        dict(semana=2, tipo="LVG", label="LVG", data="04/02", cliquesTotal=287, pico=187, vendas=0,
-             grupos=[dict(nome="GP1", leads=218, cliques=37, ctr=16.97, ativo=False),
-                     dict(nome="GP2", leads=617, cliques=154, ctr=24.96, ativo=True)]),
+             grupos=[dict(nome="GP1", leads=274, cliques=203, ctr=74.1, ativo=True)]),
     ]
     connected = False
 
@@ -340,7 +331,6 @@ for s in active_weeks:
         lives_label=" + ".join(l["label"] for l in wl), evs=wl, m=m
     ))
 
-# Overall KPIs
 ti = sum(w["inv"] for w in weeks_data)
 tla = sum(w["la"] for w in weeks_data)
 tle = sum(w["le"] for w in weeks_data)
@@ -362,7 +352,6 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ── NAV (Logica de Abas Selecionadas) ──────────────────
 nav_cols = st.columns(len(active_weeks) + 1)
 
-# Botão Visão Geral
 with nav_cols[0]:
     is_overview_active = st.session_state.sel_week is None
     btn_type = "primary" if is_overview_active else "secondary"
@@ -371,7 +360,6 @@ with nav_cols[0]:
         st.session_state.sel_week = None
         st.rerun()
 
-# Botões das Semanas
 for i, s in enumerate(active_weeks):
     with nav_cols[i + 1]:
         is_week_active = st.session_state.sel_week == s
@@ -387,8 +375,6 @@ st.markdown("<br>", unsafe_allow_html=True)
 # VISÃO GERAL
 # ══════════════════════════════════════════════════════
 if st.session_state.sel_week is None:
-
-    # KPIs
     cols = st.columns(6)
     kpis = [
         ("Investimento", fmtR(ti), "#ef4444", "Total tráfego"),
@@ -404,7 +390,6 @@ if st.session_state.sel_week is None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Gráfico 1: Cliques por Semana
     st.markdown('<h4 style="color:#111827;">Cliques por Semana</h4>', unsafe_allow_html=True)
     st.caption("Verde = ativo · Amarelo = passados")
 
@@ -429,7 +414,6 @@ if st.session_state.sel_week is None:
     fig1.update_layout(**PLOT_LAYOUT, barmode="stack", height=320)
     st.plotly_chart(fig1, use_container_width=True, config=dict(displayModeBar=False))
 
-    # Gráfico 2: CTR Ativo vs Passados
     st.markdown('<h4 style="color:#111827;">CTR: Ativo vs Passados</h4>', unsafe_allow_html=True)
     st.caption("Comparativo semana a semana")
 
@@ -452,7 +436,6 @@ if st.session_state.sel_week is None:
     fig2.update_yaxes(gridcolor="#f3f4f6", ticksuffix="%")
     st.plotly_chart(fig2, use_container_width=True, config=dict(displayModeBar=False))
 
-    # Cards de semana
     st.markdown('<h4 style="color:#111827;">Semanas</h4>', unsafe_allow_html=True)
     for w in weeks_data:
         col1, col2 = st.columns([1, 12])
@@ -486,7 +469,6 @@ else:
     st.markdown(f"<h2 style='color:#111827'>Semana {sw}</h2>", unsafe_allow_html=True)
     st.caption(f"{len(w['evs'])} live{'s' if len(w['evs']) > 1 else ''}")
 
-    # KPIs linha 1
     cols = st.columns(4)
     m = w["m"] if isinstance(w["m"], dict) else {}
     kpis1 = [
@@ -499,7 +481,6 @@ else:
         with col:
             st.markdown(kpi_html(l, v, c, s), unsafe_allow_html=True)
 
-    # KPIs linha 2
     cols = st.columns(4)
     kpis2 = [
         ("Leads Entrada", fmt(m.get("leadsEntrada", 0)), "#22c55e", "Entraram no grupo"),
@@ -513,7 +494,6 @@ else:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Barra de resumo
     st.markdown(f"""
     <div class="metric-bar">
         <div class="metric-item"><div class="m-label">Total Cliques</div><div class="m-value">{fmt(w['tc'])}</div></div>
@@ -527,7 +507,6 @@ else:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<h4 style="color:#111827;">Lives Individuais</h4>', unsafe_allow_html=True)
 
-    # Live cards
     for ev in w["evs"]:
         tc = "#3b82f6" if ev["tipo"] == "LVP" else "#f59e0b"
         tl = "Prospecção" if ev["tipo"] == "LVP" else "Conteúdo"
@@ -577,6 +556,5 @@ else:
 
         st.markdown("</div></div>", unsafe_allow_html=True)
 
-# Footer
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown('<div style="text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:16px">Dashboard Lives Semanais · Grupo Rugido</div>', unsafe_allow_html=True)
