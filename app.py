@@ -224,7 +224,6 @@ def fmt(v): return f"{v:,.0f}".replace(",", ".")
 def fmtR(v): return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 def pct(v): return f"{v:.1f}%"
 
-# --- NOVA FUNÇÃO PARA OS CARDS DE KPI COM ÍCONES ---
 def kpi_new_html(label, value, icon_class, icon_name, sub=""):
     sub_html = f'<div class="kpi-sub">{sub}</div>' if sub else ''
     return f'''
@@ -239,7 +238,6 @@ def kpi_new_html(label, value, icon_class, icon_name, sub=""):
         </div>
     </div>'''
 
-# --- NOVA FUNÇÃO PARA GERAR A TABELA DE GRUPOS ---
 def generate_groups_table(grupos):
     if not grupos: return "Sem dados de grupos."
     
@@ -423,7 +421,6 @@ if sid:
         st.stop()
     connected = True
 else:
-    # Dados de exemplo para preview
     semanal = [dict(semana=1, investimento=0, leadsAds=0, leadsEntrada=0, leadsSaida=0, vendas=0, receita=0)]
     lives = [dict(semana=1, tipo="LVP", label="Exemplo LVP", data="01/01", cliquesTotal=100, pico=50, vendas=0, grupos=[dict(nome="GP1", leads=150, cliques=100, ctr=66.7, ativo=True)])]
     connected = False
@@ -495,20 +492,18 @@ st.markdown("<br>", unsafe_allow_html=True)
 # TELA: VISÃO GERAL
 # ════════════════════════════════════════════════════════
 if st.session_state.sel_week is None:
-    # --- KPIs GERAIS (Novo Design com Ícones) ---
     cols = st.columns(4)
     kpis_overview = [
-        ("Investimento Total", fmtR(ti), "icon-red", "fa-solid fa-money-bill-wave"),
-        ("Total Leads Ads", fmt(tla), "icon-blue", "fa-solid fa-bullseye"),
-        ("CPL Médio", fmtR(ti / tla) if tla > 0 else "–", "icon-orange", "fa-solid fa-coins"),
-        ("Total Vendas", fmt(tv_all), "icon-pink", "fa-solid fa-ticket-alt"),
+        ("Investimento Total", fmtR(ti), "icon-red", "fa-solid fa-money-bill-wave", ""),
+        ("Total Leads Ads", fmt(tla), "icon-blue", "fa-solid fa-bullseye", ""),
+        ("CPL Médio", fmtR(ti / tla) if tla > 0 else "–", "icon-orange", "fa-solid fa-coins", ""),
+        ("Total Vendas", fmt(tv_all), "icon-pink", "fa-solid fa-ticket-alt", ""),
     ]
-    for col, (label, value, icon_cls, icon_name) in zip(cols, kpis_overview):
-        with col: st.markdown(kpi_new_html(label, value, icon_cls, icon_name), unsafe_allow_html=True)
+    for col, (label, value, icon_cls, icon_name, sub) in zip(cols, kpis_overview):
+        with col: st.markdown(kpi_new_html(label, value, icon_cls, icon_name, sub), unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- GRÁFICOS ---
     col_g1, col_g2 = st.columns(2)
     with col_g1:
         st.markdown('<h4>Cliques por Semana</h4>', unsafe_allow_html=True)
@@ -527,7 +522,6 @@ if st.session_state.sel_week is None:
         fig2.update_yaxes(ticksuffix="%")
         st.plotly_chart(fig2, use_container_width=True, config=dict(displayModeBar=False))
 
-    # --- LISTA DE SEMANAS (Design Mais Limpo) ---
     st.markdown('<h4>Resumo das Semanas</h4>', unsafe_allow_html=True)
     for w in weeks_data:
         c1, c2 = st.columns([1, 10])
@@ -554,33 +548,34 @@ else:
     st.markdown(f"<h2>Semana {sw} <span style='font-weight:400; font-size:1.2rem; color:#6b7280'>({len(w['evs'])} lives)</span></h2>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- KPIs DA SEMANA (Novo Design) ---
     m = w["m"] if isinstance(w["m"], dict) else {}
+    
+    # KPIs Linha 1: CORREÇÃO APLICADA AQUI (Atenção aos 5 elementos por tupla)
     cols1 = st.columns(4)
     kpis_s1 = [
-        ("Investimento", fmtR(m.get("investimento", 0)), "icon-red", "fa-solid fa-money-bill-wave"),
+        ("Investimento", fmtR(m.get("investimento", 0)), "icon-red", "fa-solid fa-money-bill-wave", ""),
         ("Leads Ads", fmt(m.get("leadsAds", 0)), "icon-blue", "fa-solid fa-bullseye", "Captados"),
-        ("CPL", fmtR(w["cpl"]) if w["la"] > 0 else "–", "icon-orange", "fa-solid fa-coins"),
-        ("Vendas", fmt(w["vt"]), "icon-pink", "fa-solid fa-ticket-alt"),
+        ("CPL", fmtR(w["cpl"]) if w["la"] > 0 else "–", "icon-orange", "fa-solid fa-coins", ""),
+        ("Vendas", fmt(w["vt"]), "icon-pink", "fa-solid fa-ticket-alt", ""),
     ]
     for col, (l, v, ic, iname, sub) in zip(cols1, kpis_s1):
         with col: st.markdown(kpi_new_html(l, v, ic, iname, sub), unsafe_allow_html=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # KPIs Linha 2
     cols2 = st.columns(4)
     kpis_s2 = [
-        ("Leads Entrada", fmt(m.get("leadsEntrada", 0)), "icon-green", "fa-solid fa-user-plus"),
-        ("Leads Saída", fmt(m.get("leadsSaida", 0)), "icon-orange", "fa-solid fa-user-minus"),
-        ("Taxa Entrada", pct(w["txE"]) if w["la"] > 0 else "–", "icon-green", "fa-solid fa-percentage"),
-        ("Taxa Saída", pct(w["txS"]) if w["le"] > 0 else "–", "icon-orange", "fa-solid fa-arrow-right-from-bracket"),
+        ("Leads Entrada", fmt(m.get("leadsEntrada", 0)), "icon-green", "fa-solid fa-user-plus", ""),
+        ("Leads Saída", fmt(m.get("leadsSaida", 0)), "icon-orange", "fa-solid fa-user-minus", ""),
+        ("Taxa Entrada", pct(w["txE"]) if w["la"] > 0 else "–", "icon-green", "fa-solid fa-percentage", ""),
+        ("Taxa Saída", pct(w["txS"]) if w["le"] > 0 else "–", "icon-orange", "fa-solid fa-arrow-right-from-bracket", ""),
     ]
-    for col, (l, v, ic, iname) in zip(cols2, kpis_s2):
-        with col: st.markdown(kpi_new_html(l, v, ic, iname), unsafe_allow_html=True)
+    for col, (l, v, ic, iname, sub) in zip(cols2, kpis_s2):
+        with col: st.markdown(kpi_new_html(l, v, ic, iname, sub), unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- BARRA DE MÉTTRICAS AGREGADAS (Novo Design) ---
     st.markdown(f"""
     <div class="metric-bar-new">
         <div class="mb-item"><div class="mb-label">Total Cliques</div><div class="mb-value">{fmt(w["tc"])}</div></div>
@@ -593,7 +588,6 @@ else:
 
     st.markdown("<h4>Detalhamento das Lives</h4>", unsafe_allow_html=True)
 
-    # --- LIVES INDIVIDUAIS (DESIGN DE ACORDEÃO + TABELA) ---
     for i, ev in enumerate(w["evs"]):
         tipo_badge_color = "#3b82f6" if ev["tipo"] == "LVP" else "#f59e0b"
         expander_title = f"{ev['label']}  |  {ev['data']}  |  Vendas: {fmt(ev['vendas'])}"
