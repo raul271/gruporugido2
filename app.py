@@ -9,8 +9,7 @@ from io import StringIO
 st.set_page_config(
     page_title="Dashboard Lives Semanais — Grupo Rugido",
     page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="collapsed",
+    layout="wide"
 )
 
 # ── CSS / ESTILO ULTRA-COMPACTO E ALINHADO ──────────────
@@ -35,9 +34,10 @@ st.markdown("""
 
 .stApp { background-color: var(--bg-light); font-family: 'Inter', sans-serif; }
 header, [data-testid="stHeader"] { background-color: transparent !important; }
-[data-testid="stSidebar"] { background-color: var(--bg-white); border-right: 1px solid var(--border-color); }
 #MainMenu, footer, [data-testid="stDecoration"] { display: none !important; }
 .block-container { padding-top: 1.5rem !important; padding-bottom: 1rem !important; max-width: 1200px !important; }
+/* Esconder o botão padrão de abrir sidebar caso ele tente aparecer */
+[data-testid="collapsedControl"] { display: none !important; }
 
 h1, h2, h3, h4 { color: var(--text-primary); font-weight: 700; line-height: 1.2; margin: 0; }
 h4 { font-size: 1rem; margin-bottom: 0.8rem; margin-top: 1.5rem; }
@@ -306,23 +306,13 @@ PLOT_LAYOUT = dict(
     hoverlabel=dict(bgcolor="#ffffff", bordercolor="#e2e8f0", font=dict(family="Inter", size=12, color="#111827")),
 )
 
-# ── GERENCIAMENTO DE ESTADO (SESSION STATE) ─────────────
+# ── GERENCIAMENTO DE ESTADO E CONEXÃO FIXA ──────────────
 if "page" not in st.session_state: st.session_state.page = "overview"
 if "sel_week" not in st.session_state: st.session_state.sel_week = None
 
-# ── FIXAÇÃO DO ID DA PLANILHA PARA CARREGAMENTO AUTOMÁTICO ──
 ID_DA_PLANILHA = "17WFm9kfssn7I0YhMIaZ3_6bEBHVVdJlD"
 if "sheet_id" not in st.session_state: 
     st.session_state.sheet_id = ID_DA_PLANILHA
-
-# ── BARRA LATERAL (SIDEBAR) ─────────────────────────────
-with st.sidebar:
-    st.markdown("### ⚙️ Conexão")
-    st.caption("Conectado automaticamente à planilha principal do Grupo Rugido.")
-    sheet_id = st.text_input("ID da Planilha", value=st.session_state.get("sheet_id", ""))
-    if st.button("🔄 Atualizar Dados", use_container_width=True):
-        st.session_state.sheet_id = sheet_id
-        st.cache_data.clear()
 
 # ── CARREGAMENTO DE DADOS ───────────────────────────────
 @st.cache_data(ttl=120, show_spinner=False)
@@ -332,17 +322,12 @@ def fetch_all(sid):
     return process_semanal(sem_df), process_lives(liv_df)
 
 sid = st.session_state.get("sheet_id", "")
-if sid:
-    with st.spinner("Carregando Dados em Tempo Real..."):
-        semanal, lives = fetch_all(sid)
-    if semanal is None:
-        st.error("Erro de conexão. Verifique o ID.")
-        st.stop()
-    connected = True
-else:
-    semanal = [dict(semana=1, investimento=0, leadsAds=0, leadsEntrada=0, leadsSaida=0, vendas=0, receita=0)]
-    lives = [dict(semana=1, tipo="LVP", label="Preview LVP", data="01/01", cliquesTotal=100, pico=50, novos=20, vendas=0, grupos=[dict(nome="GP1", leads=150, cliques=100, ctr=66.7, ativo=True)])]
-    connected = False
+with st.spinner("Sincronizando com Google Sheets..."):
+    semanal, lives = fetch_all(sid)
+
+if semanal is None:
+    st.error("Erro ao conectar com a planilha. Verifique as permissões de acesso do link.")
+    st.stop()
 
 # ── CÁLCULOS GERAIS ─────────────────────────────────────
 sem_map = {s["semana"]: s for s in semanal}
@@ -396,16 +381,22 @@ tv_all = sum(w["vt"] for w in weeks_data)
 total_novos_all = sum(w["tne"] for w in weeks_data)
 cpne_global = ti / total_novos_all if total_novos_all > 0 else 0
 
-# ── CABEÇALHO PRINCIPAL ─────────────────────────────────
-st.markdown("""
-<div class="brand">
-    <span class="brand-text">Grupo <span class="brand-highlight">Rugido</span></span>
-</div>
-""", unsafe_allow_html=True)
+# ── CABEÇALHO PRINCIPAL E BOTÃO DE ATUALIZAR ────────────
+h_col1, h_col2 = st.columns([5, 1])
+with h_col1:
+    st.markdown("""
+    <div class="brand">
+        <span class="brand-text">Grupo <span class="brand-highlight">Rugido</span></span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">🟢 Sincronizado via Google Sheets</div>', unsafe_allow_html=True)
 
-status_icon = "🟢" if connected else "🟠"
-status_text = "Sincronizado via Google Sheets" if connected else "Preview"
-st.markdown(f'<div class="sub-title">{status_icon} {status_text}</div>', unsafe_allow_html=True)
+with h_col2:
+    st.markdown("<div style='margin-bottom: 5px'></div>", unsafe_allow_html=True)
+    if st.button("🔄 Atualizar Dados", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+
 st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
 
 # ── NAVEGAÇÃO SUPERIOR ──────────────────────────────────
