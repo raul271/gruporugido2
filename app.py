@@ -15,8 +15,8 @@ st.set_page_config(
 
 # ── CSS / ESTILO DO NOVO DESIGN ─────────────────────────
 st.markdown("""
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <style>
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
@@ -109,7 +109,7 @@ h4 { font-size: 1.1rem; margin-bottom: 1rem; margin-top: 2rem; }
 }
 .streamlit-expanderHeader:hover {
     border-color: var(--primary-color);
-    background-color: #fdf2f8; /* Rosa bem clarinho */
+    background-color: #fdf2f8; 
 }
 .streamlit-expanderContent {
     background-color: var(--bg-white);
@@ -161,7 +161,7 @@ h4 { font-size: 1.1rem; margin-bottom: 1rem; margin-top: 2rem; }
 }
 /* Destaque para o grupo ativo na tabela */
 .active-group-row {
-    background-color: #ecfdf5 !important; /* Verde clarinho */
+    background-color: #ecfdf5 !important; 
 }
 .active-group-row td:first-child {
     font-weight: 700;
@@ -534,7 +534,6 @@ if st.session_state.sel_week is None:
         with c1:
             st.markdown(f'<div style="background:#fdf2f8;border-radius:10px;height:50px;display:flex;align-items:center;justify-content:center;border:1px solid #fce7f3"><span style="font-size:18px;font-weight:700;color:#e91e63">S{w["sn"]}</span></div>', unsafe_allow_html=True)
         with c2:
-            # Usando um botão com estilo secundário para parecer um item de lista clicável
             label = f"Lives: {w['lives_label']} | Invest: {fmtR(w['inv'])} | Vendas: {fmt(w['vt'])}"
             if st.button(label, key=f"week_list_{w['sn']}", use_container_width=True, type="secondary"):
                 st.session_state.sel_week = w["sn"]
@@ -596,12 +595,10 @@ else:
 
     # --- LIVES INDIVIDUAIS (DESIGN DE ACORDEÃO + TABELA) ---
     for i, ev in enumerate(w["evs"]):
-        # Cabeçalho do Acordeão
         tipo_badge_color = "#3b82f6" if ev["tipo"] == "LVP" else "#f59e0b"
         expander_title = f"{ev['label']}  |  {ev['data']}  |  Vendas: {fmt(ev['vendas'])}"
         
-        with st.expander(expander_title, expanded=(i==0)): # A primeira live já vem aberta
-            # Resumo da Live dentro do acordeão
+        with st.expander(expander_title, expanded=(i==0)):
             st.markdown(f"""
             <div class="live-summary-metrics">
                 <div><div style="font-size:0.75rem;color:#6b7280;text-transform:uppercase;font-weight:600">Tipo</div><div style="font-weight:700;color:{tipo_badge_color}">{ev["tipo"]}</div></div>
@@ -611,10 +608,9 @@ else:
             </div>
             """, unsafe_allow_html=True)
             
-            # Tabela de Grupos
             st.markdown('**Performance por Grupo:**')
             st.markdown(generate_groups_table(ev["grupos"]), unsafe_allow_html=True)
 
 # ── RODAPÉ ──────────────────────────────────────────────
 st.markdown("<br><br><br>", unsafe_allow_html=True)
-st.markdown('<div style="text-align:center;font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:24px">© 2024 Grupo Rugido · Dashboard de Performance</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center;font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:24px">© 2026 Grupo Rugido · Dashboard de Performance</div>', unsafe_allow_html=True)
