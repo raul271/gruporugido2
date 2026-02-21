@@ -511,14 +511,12 @@ else:
 
     st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    # --- NOVO GRÁFICO DE JORNADA: ISOLANDO A 1ª LVP E O GRUPO ATIVO ---
+    # --- GRÁFICO DE JORNADA: ISOLANDO A 1ª LVP E O GRUPO ATIVO ---
     st.markdown('<h4>Jornada de Conversão (1ª LVP - Grupo Principal)</h4>', unsafe_allow_html=True)
     
-    # 1. Encontra qual foi a primeira LVP daquela semana
     primeira_lvp = next((ev for ev in w["evs"] if ev["tipo"] == "LVP"), None)
     
     if primeira_lvp:
-        # 2. Se houver uma LVP, puxa apenas os dados do Grupo Ativo dela
         grupo_ativo = next((g for g in primeira_lvp["grupos"] if g["ativo"]), None)
         leads_ativos = grupo_ativo["leads"] if grupo_ativo else 0
         cliques_ativos = grupo_ativo["cliques"] if grupo_ativo else 0
@@ -528,7 +526,6 @@ else:
         funnel_labels = ['Captação (Ads)', 'Entraram GP', 'Ficaram (Ativo)', 'Cliques (Ativo)', 'Pico (1ª LVP)', 'Vendas']
         funnel_values = [w['la'], w['le'], leads_ativos, cliques_ativos, pico_lvp, vendas_lvp]
     else:
-        # Se naquela semana bizarra não teve LVP (só LVG por exemplo), ele faz um fallback global
         funnel_labels = ['Captação (Ads)', 'Entraram GP', 'Ficaram GP', 'Cliques', 'Pico Máx', 'Vendas']
         ficaram_grupo = w['le'] - w['ls']
         funnel_values = [w['la'], w['le'], ficaram_grupo, w['tc'], w['pico'], w['vt']]
@@ -544,7 +541,8 @@ else:
         text=text_vals,
         textposition='top center',
         textfont=dict(size=11, color='#111827'),
-        marker=dict(size=12, color='#e91e63', line=dict(width=2, color='white'), cliponaxis=False),
+        cliponaxis=False, # CORREÇÃO: O comando vem AQUI na linha, e não dentro do marker!
+        marker=dict(size=12, color='#e91e63', line=dict(width=2, color='white')),
         line=dict(width=4, color='#e91e63', shape='spline'), 
         fill='tozeroy', 
         fillcolor='rgba(233, 30, 99, 0.08)'
@@ -554,10 +552,10 @@ else:
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Inter", color="#6b7280", size=11),
-        margin=dict(l=50, r=50, t=50, b=20), # Aumentada as margens para não cortar o texto
+        margin=dict(l=50, r=50, t=50, b=20), 
         height=260,
-        yaxis=dict(showgrid=False, zeroline=False, visible=False, range=[0, max(funnel_values)*1.4]), # Mais espaço pro texto subir
-        xaxis=dict(showgrid=False, zeroline=False, range=[-0.3, 5.3]) # Margem interna X para proteger a 1ª e a última Label
+        yaxis=dict(showgrid=False, zeroline=False, visible=False, range=[0, max(funnel_values)*1.4]), 
+        xaxis=dict(showgrid=False, zeroline=False, range=[-0.3, 5.3]) 
     )
     st.plotly_chart(fig_funnel_sem, use_container_width=True, config=dict(displayModeBar=False))
     
