@@ -102,7 +102,7 @@ h4 { font-size: 1rem; margin-bottom: 0.8rem; margin-top: 1.5rem; }
     padding: 12px 16px; margin-top: -4px; margin-bottom: 8px;
 }
 .live-summary-metrics {
-    display: grid; grid-template-columns: repeat(5, 1fr); /* Atualizado para 5 colunas */
+    display: grid; grid-template-columns: repeat(5, 1fr); 
     gap: 12px; margin-bottom: 10px; text-align: center;
     padding-bottom: 10px; border-bottom: 1px dashed var(--border-color);
 }
@@ -254,7 +254,6 @@ def process_lives(df):
         if not semana or not tipo or not label or tipo == "NAN": continue
         ga = str(get_val(row, "Grupo Ativo")).strip().upper()
         
-        # BUSCANDO A NOVA COLUNA DE NOVOS ESPECTADORES
         novos_espectadores = safe_float(get_val(row, ["Novos Espectadores", "Espectadores Novos", "Novos"]))
         
         grupos = []
@@ -269,7 +268,7 @@ def process_lives(df):
             data=str(get_val(row, "Data")).strip(),
             cliquesTotal=safe_float(get_val(row, ["Cliques Total", "Cliques"])),
             pico=safe_float(get_val(row, "Pico")),
-            novos=novos_espectadores, # <--- ADICIONADO AQUI
+            novos=novos_espectadores, 
             vendas=safe_float(get_val(row, ["Vendas", "Vendas Total"])),
             grupos=grupos,
         ))
@@ -334,7 +333,7 @@ if sid:
     connected = True
 else:
     semanal = [dict(semana=1, investimento=0, leadsAds=0, leadsEntrada=0, leadsSaida=0, vendas=0, receita=0)]
-    lives = [dict(semana=1, tipo="LVP", label="Preview", data="01/01", cliquesTotal=100, pico=50, novos=20, vendas=0, grupos=[dict(nome="GP1", leads=150, cliques=100, ctr=66.7, ativo=True)])]
+    lives = [dict(semana=1, tipo="LVP", label="Preview LVP", data="01/01", cliquesTotal=100, pico=50, novos=20, vendas=0, grupos=[dict(nome="GP1", leads=150, cliques=100, ctr=66.7, ativo=True)])]
     connected = False
 
 # ── CÁLCULOS GERAIS ─────────────────────────────────────
@@ -348,7 +347,7 @@ for s in active_weeks:
     st_ = calc_stats(all_g)
     tc = sum(l["cliquesTotal"] for l in wl)
     tv = sum(l["vendas"] for l in wl)
-    tne = sum(l["novos"] for l in wl) # Soma dos Novos Espectadores da Semana
+    tne = sum(l["novos"] for l in wl) 
     m = sem_map.get(s, {})
     inv = m.get("investimento", 0)
     la = m.get("leadsAds", 0)
@@ -357,11 +356,11 @@ for s in active_weeks:
     cpl = inv / la if la > 0 else 0
     txE = (le / la) * 100 if la > 0 else 0
     txS = (ls_ / le) * 100 if le > 0 else 0
-    cpne = inv / tne if tne > 0 else 0 # Custo por Novo Espectador
+    cpne = inv / tne if tne > 0 else 0 
     
     weeks_data.append(dict(
         sn=s, **st_, tc=tc, pico=max((l["pico"] for l in wl), default=0),
-        tne=tne, cpne=cpne, # Adicionado
+        tne=tne, cpne=cpne, 
         inv=inv, la=la, le=le, ls=ls_, cpl=cpl, txE=round(txE, 1), txS=round(txS, 1),
         vt=tv + m.get("vendas", 0),
         lives_label=" + ".join(l["label"] for l in wl), evs=wl, m=m
@@ -415,14 +414,13 @@ st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
 if st.session_state.sel_week is None:
     st.markdown('<div class="week-header"><div class="week-title-text"><i class="fa-solid fa-chart-line" style="color:var(--primary-color); margin-right:8px"></i> Visão Geral do Lançamento</div><div class="week-subtitle">Acumulado de todas as semanas</div></div>', unsafe_allow_html=True)
 
-    # NOVO: 6 colunas para englobar os dados de Novos Espectadores e CPNE
     cols = st.columns(6)
     kpis_overview = [
         ("Investimento", fmtR(ti), "icon-red", "fa-solid fa-money-bill-wave"),
         ("Leads Ads", fmt(tla), "icon-blue", "fa-solid fa-bullseye"),
         ("CPL", fmtR(ti / tla) if tla > 0 else "–", "icon-orange", "fa-solid fa-coins"),
-        ("Novos Espect.", fmt(total_novos_all), "icon-purple", "fa-solid fa-user-plus"), # NOVA MÉTRICA
-        ("CPNE", fmtR(cpne_global), "icon-orange", "fa-solid fa-tags"), # NOVA MÉTRICA
+        ("Novos Espect.", fmt(total_novos_all), "icon-purple", "fa-solid fa-user-plus"),
+        ("CPNE", fmtR(cpne_global), "icon-orange", "fa-solid fa-tags"),
         ("Vendas", fmt(tv_all), "icon-pink", "fa-solid fa-ticket-alt"),
     ]
     for col, (label, value, icon_cls, icon_name) in zip(cols, kpis_overview):
@@ -430,24 +428,16 @@ if st.session_state.sel_week is None:
     
     st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    # NOVO: GRÁFICO DE FUNIL GLOBAL
-    col_f, col_g = st.columns([1, 1])
-    with col_f:
-        st.markdown('<h4>Funil de Conversão</h4>', unsafe_allow_html=True)
-        # Lógica rigorosa de funil ditada por você
-        funnel_labels = ['Captação (Ads)', 'Entraram no GP', 'Ficaram no GP', 'Cliques no Link', 'Pico nas Lives', 'Vendas']
-        ficaram_grupo = tle - tls
-        funnel_values = [tla, tle, ficaram_grupo, total_cliques_all, total_pico_all, tv_all]
-        
-        fig_funnel = go.Figure(go.Funnel(
-            y=funnel_labels, x=funnel_values,
-            textinfo="value+percent initial",
-            marker=dict(color=["#3b82f6", "#22c55e", "#10b981", "#f59e0b", "#8b5cf6", "#e91e63"])
-        ))
-        fig_funnel.update_layout(**PLOT_LAYOUT, height=280)
-        st.plotly_chart(fig_funnel, use_container_width=True, config=dict(displayModeBar=False))
+    col_g1, col_g2 = st.columns(2)
+    with col_g1:
+        st.markdown('<h4>Cliques por Semana</h4>', unsafe_allow_html=True)
+        fig1 = go.Figure()
+        fig1.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ac"] for w in weeks_data], name="Ativo", marker_color="#22c55e"))
+        fig1.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["pc"] for w in weeks_data], name="Passados", marker_color="#f59e0b"))
+        fig1.update_layout(**PLOT_LAYOUT, barmode="stack", height=280) 
+        st.plotly_chart(fig1, use_container_width=True, config=dict(displayModeBar=False))
     
-    with col_g:
+    with col_g2:
         st.markdown('<h4>CTR Médio por Semana</h4>', unsafe_allow_html=True)
         fig2 = go.Figure()
         fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["aCTR"] for w in weeks_data], name="Ativo", marker_color="#22c55e", text=[pct(w["aCTR"]) for w in weeks_data], textposition="auto"))
@@ -484,30 +474,50 @@ else:
 
     m = w["m"] if isinstance(w["m"], dict) else {}
     
-    # KPIs TELA DA SEMANA COM CPNE INCLUSO
-    cols1 = st.columns(4)
+    # 2 LINHAS COM 5 CARTÕES CADA (Para caber as Taxas, Leads e tudo mais)
+    cols1 = st.columns(5)
     kpis_s1 = [
         ("Investimento", fmtR(m.get("investimento", 0)), "icon-red", "fa-solid fa-money-bill-wave"),
         ("Leads Ads", fmt(m.get("leadsAds", 0)), "icon-blue", "fa-solid fa-bullseye"),
-        ("Novos Espect.", fmt(w["tne"]), "icon-purple", "fa-solid fa-user-plus"), # NOVO
-        ("CPNE", fmtR(w["cpne"]), "icon-orange", "fa-solid fa-tags"), # NOVO
+        ("Leads Entrada", fmt(m.get("leadsEntrada", 0)), "icon-green", "fa-solid fa-user-plus"),
+        ("Taxa Entrada", pct(w["txE"]) if w["la"] > 0 else "–", "icon-green", "fa-solid fa-percentage"),
+        ("Taxa de Saída", pct(w["txS"]) if w["le"] > 0 else "–", "icon-orange", "fa-solid fa-user-minus"),
     ]
     for col, (l, v, ic, iname) in zip(cols1, kpis_s1):
         with col: st.markdown(kpi_new_html(l, v, ic, iname), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-bottom: 10px'></div>", unsafe_allow_html=True)
 
-    cols2 = st.columns(4)
+    cols2 = st.columns(5)
     kpis_s2 = [
-        ("Leads Entrada", fmt(m.get("leadsEntrada", 0)), "icon-green", "fa-solid fa-user-plus"),
-        ("Taxa de Fuga", pct(w["txS"]) if w["le"] > 0 else "–", "icon-orange", "fa-solid fa-user-minus"),
+        ("CPL", fmtR(w["cpl"]) if w["la"] > 0 else "–", "icon-orange", "fa-solid fa-coins"),
+        ("Novos Espect.", fmt(w["tne"]), "icon-purple", "fa-solid fa-user-plus"),
+        ("CPNE", fmtR(w["cpne"]), "icon-orange", "fa-solid fa-tags"),
         ("Total Cliques", fmt(w["tc"]), "icon-blue", "fa-solid fa-pointer"),
         ("Vendas Semana", fmt(w["vt"]), "icon-pink", "fa-solid fa-ticket-alt"),
     ]
     for col, (l, v, ic, iname) in zip(cols2, kpis_s2):
         with col: st.markdown(kpi_new_html(l, v, ic, iname), unsafe_allow_html=True)
 
+    st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
+
+    # --- FUNIL DA SEMANA ---
+    st.markdown('<h4>Funil de Conversão da Semana</h4>', unsafe_allow_html=True)
+    funnel_labels = ['Captação (Ads)', 'Entraram no GP', 'Ficaram no GP', 'Cliques no Link', 'Pico nas Lives', 'Vendas']
+    ficaram_grupo = w['le'] - w['ls']
+    funnel_values = [w['la'], w['le'], ficaram_grupo, w['tc'], w['pico'], w['vt']]
+    
+    fig_funnel_sem = go.Figure(go.Funnel(
+        y=funnel_labels, x=funnel_values,
+        textinfo="value+percent initial",
+        marker=dict(color=["#3b82f6", "#22c55e", "#10b981", "#f59e0b", "#8b5cf6", "#e91e63"])
+    ))
+    fig_funnel_sem.update_layout(**PLOT_LAYOUT, height=280)
+    st.plotly_chart(fig_funnel_sem, use_container_width=True, config=dict(displayModeBar=False))
+    
     st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
+
+    st.markdown(f'<div class="metric-bar-new"><div class="mb-item"><div class="mb-label">Cliques Total</div><div class="mb-value">{fmt(w["tc"])}</div></div><div class="mb-item"><div class="mb-label">Pico Máx</div><div class="mb-value" style="color:var(--primary-color)">{fmt(w["pico"])}</div></div><div class="mb-item"><div class="mb-label">CTR Ativo Médio</div><div class="mb-value" style="color:var(--success-color)">{pct(w["aCTR"])}</div></div><div class="mb-item"><div class="mb-label">CTR Passados Médio</div><div class="mb-value" style="color:var(--warning-color)">{pct(w["pCTR"]) if w["pCTR"] > 0 else "–"}</div></div><div class="mb-item"><div class="mb-label">Grupo Ativo</div><div class="mb-value" style="color:var(--primary-color)">{w["ga"]}</div></div></div>', unsafe_allow_html=True)
 
     st.markdown("<h4>Detalhamento das Lives</h4>", unsafe_allow_html=True)
 
@@ -516,7 +526,6 @@ else:
         expander_title = f"{ev['label']} ({ev['data']}) | Novos: {fmt(ev['novos'])} | Vendas: {fmt(ev['vendas'])}"
         
         with st.expander(expander_title, expanded=(i==0)):
-            # ATUALIZADO PARA 5 COLUNAS NO ACORDEÃO (INCLUINDO NOVOS)
             st.markdown(f'<div class="live-summary-metrics"><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Tipo</div><div style="font-weight:800;color:{tipo_badge_color}">{ev["tipo"]}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Cliques</div><div style="font-weight:800">{fmt(ev["cliquesTotal"])}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Pico</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["pico"])}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Novos</div><div style="font-weight:800;color:var(--purple-color)">{fmt(ev["novos"])}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Vendas</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["vendas"])}</div></div></div>', unsafe_allow_html=True)
             st.markdown(generate_groups_table(ev["grupos"]), unsafe_allow_html=True)
 
