@@ -511,15 +511,30 @@ else:
 
     st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    # --- NOVO GRÁFICO: JORNADA DE CONVERSÃO EM LINHA (HORIZONTAL) ---
-    st.markdown('<h4>Jornada de Conversão da Semana</h4>', unsafe_allow_html=True)
-    funnel_labels = ['Captação (Ads)', 'Entraram no GP', 'Ficaram no GP', 'Cliques no Link', 'Pico nas Lives', 'Vendas']
-    ficaram_grupo = w['le'] - w['ls']
-    funnel_values = [w['la'], w['le'], ficaram_grupo, w['tc'], w['pico'], w['vt']]
+    # --- NOVO GRÁFICO DE JORNADA: ISOLANDO A 1ª LVP E O GRUPO ATIVO ---
+    st.markdown('<h4>Jornada de Conversão (1ª LVP - Grupo Principal)</h4>', unsafe_allow_html=True)
     
-    max_val = w['la'] if w['la'] > 0 else 1
-    # Formata o texto para exibir o número absoluto e a porcentagem embaixo
-    text_vals = [f"<b>{v:,.0f}</b><br>({(v/max_val)*100:.1f}%)" for v in funnel_values]
+    # 1. Encontra qual foi a primeira LVP daquela semana
+    primeira_lvp = next((ev for ev in w["evs"] if ev["tipo"] == "LVP"), None)
+    
+    if primeira_lvp:
+        # 2. Se houver uma LVP, puxa apenas os dados do Grupo Ativo dela
+        grupo_ativo = next((g for g in primeira_lvp["grupos"] if g["ativo"]), None)
+        leads_ativos = grupo_ativo["leads"] if grupo_ativo else 0
+        cliques_ativos = grupo_ativo["cliques"] if grupo_ativo else 0
+        pico_lvp = primeira_lvp["pico"]
+        vendas_lvp = primeira_lvp["vendas"]
+        
+        funnel_labels = ['Captação (Ads)', 'Entraram GP', 'Ficaram (Ativo)', 'Cliques (Ativo)', 'Pico (1ª LVP)', 'Vendas']
+        funnel_values = [w['la'], w['le'], leads_ativos, cliques_ativos, pico_lvp, vendas_lvp]
+    else:
+        # Se naquela semana bizarra não teve LVP (só LVG por exemplo), ele faz um fallback global
+        funnel_labels = ['Captação (Ads)', 'Entraram GP', 'Ficaram GP', 'Cliques', 'Pico Máx', 'Vendas']
+        ficaram_grupo = w['le'] - w['ls']
+        funnel_values = [w['la'], w['le'], ficaram_grupo, w['tc'], w['pico'], w['vt']]
+    
+    base_val = funnel_values[0] if funnel_values[0] > 0 else max(1, max(funnel_values))
+    text_vals = [f"<b>{v:,.0f}</b><br>({(v/base_val)*100:.1f}%)" for v in funnel_values]
 
     fig_funnel_sem = go.Figure()
     fig_funnel_sem.add_trace(go.Scatter(
@@ -528,21 +543,21 @@ else:
         mode='lines+markers+text',
         text=text_vals,
         textposition='top center',
-        textfont=dict(size=12, color='#111827'),
-        marker=dict(size=12, color='#e91e63', line=dict(width=2, color='white')),
-        line=dict(width=4, color='#e91e63', shape='spline'), # Spline deixa a curva suave
-        fill='tozeroy', # Preenche a área abaixo da linha
+        textfont=dict(size=11, color='#111827'),
+        marker=dict(size=12, color='#e91e63', line=dict(width=2, color='white'), cliponaxis=False),
+        line=dict(width=4, color='#e91e63', shape='spline'), 
+        fill='tozeroy', 
         fillcolor='rgba(233, 30, 99, 0.08)'
     ))
     
     fig_funnel_sem.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter", color="#6b7280", size=12),
-        margin=dict(l=20, r=20, t=40, b=20),
+        font=dict(family="Inter", color="#6b7280", size=11),
+        margin=dict(l=50, r=50, t=50, b=20), # Aumentada as margens para não cortar o texto
         height=260,
-        yaxis=dict(showgrid=False, zeroline=False, visible=False, range=[0, max(funnel_values)*1.25]), # Esconde o eixo Y e dá margem pro texto
-        xaxis=dict(showgrid=False, zeroline=False)
+        yaxis=dict(showgrid=False, zeroline=False, visible=False, range=[0, max(funnel_values)*1.4]), # Mais espaço pro texto subir
+        xaxis=dict(showgrid=False, zeroline=False, range=[-0.3, 5.3]) # Margem interna X para proteger a 1ª e a última Label
     )
     st.plotly_chart(fig_funnel_sem, use_container_width=True, config=dict(displayModeBar=False))
     
