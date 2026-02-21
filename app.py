@@ -103,7 +103,7 @@ h4 { font-size: 1rem; margin-bottom: 0.8rem; margin-top: 1.5rem; }
     padding: 12px 16px; margin-top: -4px; margin-bottom: 8px;
 }
 .live-summary-metrics {
-    display: grid; grid-template-columns: repeat(5, 1fr); 
+    display: grid; grid-template-columns: repeat(6, 1fr); 
     gap: 12px; margin-bottom: 10px; text-align: center;
     padding-bottom: 10px; border-bottom: 1px dashed var(--border-color);
 }
@@ -163,6 +163,7 @@ button[kind="primary"]:hover { background: #d81b60 !important; border-color: #d8
 MAX_GP = 8
 
 def fmt(v): return f"{v:,.0f}".replace(",", ".")
+def fmt_float(v): return f"{v:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
 def fmtR(v): return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 def pct(v): return f"{v:.1f}%"
 
@@ -259,7 +260,9 @@ def process_lives(df):
         if not semana or not tipo or not label or tipo == "NAN": continue
         ga = str(get_val(row, "Grupo Ativo")).strip().upper()
         
-        novos_espectadores = safe_float(get_val(row, ["Novos Espectadores", "Espectadores Novos", "Novos"]))
+        # Puxando os dados das NOVAS colunas que você criou
+        novos_espectadores = safe_float(get_val(row, ["NE", "Novos Espectadores", "Espectadores Novos", "Novos"]))
+        watchtime = safe_float(get_val(row, ["Watchtime", "Watch time", "Tempo"]))
         
         grupos = []
         for g in range(1, MAX_GP + 1):
@@ -278,6 +281,7 @@ def process_lives(df):
             cliquesTotal=safe_float(get_val(row, ["Cliques Total", "Cliques"])), 
             pico=safe_float(get_val(row, "Pico")),
             novos=novos_espectadores, 
+            watchtime=watchtime, # Incluído o Watchtime
             vendas=safe_float(get_val(row, ["Vendas", "Vendas Total"])),
             grupos=grupos,
             ativo_leads=ativo_leads,     
@@ -336,9 +340,6 @@ if semanal is None:
 
 # ── CÁLCULOS GERAIS ─────────────────────────────────────
 sem_map = {s["semana"]: s for s in semanal}
-
-# --- A REGRA DE OURO DO MICROCLICO ---
-# Só cria a aba se o Investimento for maior que zero na aba Semanal
 active_weeks = sorted([s for s, data in sem_map.items() if data.get("investimento", 0) > 0])
 
 weeks_data = []
@@ -354,9 +355,12 @@ for s in active_weeks:
     la = m.get("leadsAds", 0)
     le = m.get("leadsEntrada", 0)
     ls_ = m.get("leadsSaida", 0)
+    
+    # A matemática rigorosa de entrada e saída
     cpl = inv / la if la > 0 else 0
     txE = (le / la) * 100 if la > 0 else 0
-    txS = (ls_ / le) * 100 if le > 0 else 0
+    txS = (ls_ / le) * 100 if le > 0 else 0 # A Taxa de Saída correta calculada sobre os Leads de Entrada
+    
     cpne = inv / tne if tne > 0 else 0 
     captacao = m.get("captacao", "")
 
@@ -371,7 +375,6 @@ for s in active_weeks:
     ativo_cliques_lvg = sum(live['ativo_cliques'] for live in lvg_lives)
     ctr_lvg = round((ativo_cliques_lvg / ativo_leads_lvg) * 100, 1) if ativo_leads_lvg > 0 else 0.0
     
-    # Rótulo inteligente caso ainda não existam lives para aquele microciclo
     lives_label_str = " + ".join(l["label"] for l in wl)
     if not lives_label_str:
         lives_label_str = "Fase de Captação"
@@ -510,7 +513,7 @@ else:
         ("Investimento", fmtR(m.get("investimento", 0)), "icon-red", "fa-solid fa-money-bill-wave"),
         ("Leads Ads", fmt(m.get("leadsAds", 0)), "icon-blue", "fa-solid fa-bullseye"),
         ("CPL", fmtR(w["cpl"]) if w["la"] > 0 else "–", "icon-orange", "fa-solid fa-coins"),
-        ("Novos Espect.", fmt(w["tne"]), "icon-purple", "fa-solid fa-user-plus"),
+        ("Novos Espect. (NE)", fmt(w["tne"]), "icon-purple", "fa-solid fa-user-plus"),
         ("CPNE", fmtR(w["cpne"]), "icon-orange", "fa-solid fa-tags"),
     ]
     for col, (l, v, ic, iname) in zip(cols1, kpis_s1):
@@ -587,10 +590,20 @@ else:
 
     for i, ev in enumerate(w["evs"]):
         tipo_badge_color = "#3b82f6" if ev["tipo"] == "LVP" else "#f59e0b"
-        expander_title = f"{ev['label']} ({ev['data']}) | Novos: {fmt(ev['novos'])} | Vendas: {fmt(ev['vendas'])}"
+        expander_title = f"{ev['label']} ({ev['data']}) | NE: {fmt(ev['novos'])} | Vendas: {fmt(ev['vendas'])}"
         
         with st.expander(expander_title, expanded=(i==0)):
-            st.markdown(f'<div class="live-summary-metrics"><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Tipo</div><div style="font-weight:800;color:{tipo_badge_color}">{ev["tipo"]}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Cliques</div><div style="font-weight:800">{fmt(ev["cliquesTotal"])}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Pico</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["pico"])}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Novos</div><div style="font-weight:800;color:var(--purple-color)">{fmt(ev["novos"])}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Vendas</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["vendas"])}</div></div></div>', unsafe_allow_html=True)
+            # ADICIONADO A 6ª COLUNA PARA O WATCHTIME
+            st.markdown(f'''
+            <div class="live-summary-metrics">
+                <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Tipo</div><div style="font-weight:800;color:{tipo_badge_color}">{ev["tipo"]}</div></div>
+                <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Cliques</div><div style="font-weight:800">{fmt(ev["cliquesTotal"])}</div></div>
+                <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Pico</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["pico"])}</div></div>
+                <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Watchtime</div><div style="font-weight:800;color:var(--text-primary)">{fmt_float(ev["watchtime"])}</div></div>
+                <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">NE (Novos)</div><div style="font-weight:800;color:var(--purple-color)">{fmt(ev["novos"])}</div></div>
+                <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Vendas</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["vendas"])}</div></div>
+            </div>
+            ''', unsafe_allow_html=True)
             st.markdown(generate_groups_table(ev["grupos"]), unsafe_allow_html=True)
 
 # ── RODAPÉ ──────────────────────────────────────────────
