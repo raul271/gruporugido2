@@ -264,20 +264,20 @@ def process_lives(df):
             if leads > 0 or cliques > 0:
                 grupos.append(dict(nome=f"GP{g}", leads=leads, cliques=cliques, ctr=ctr, ativo=f"GP{g}" == ga))
         
-        # Calcula Totais da Live Específica para Média
-        total_leads_live = sum(g["leads"] for g in grupos)
-        total_cliques_live = sum(g["cliques"] for g in grupos)
+        # --- CÁLCULO EXCLUSIVO DO GRUPO PRINCIPAL PARA ESTA LIVE ---
+        ativo_leads = sum(g["leads"] for g in grupos if g["ativo"])
+        ativo_cliques = sum(g["cliques"] for g in grupos if g["ativo"])
 
         lives.append(dict(
             semana=semana, tipo=tipo, label=label,
             data=str(get_val(row, "Data")).strip(),
-            cliquesTotal=safe_float(get_val(row, ["Cliques Total", "Cliques"])),
+            cliquesTotal=safe_float(get_val(row, ["Cliques Total", "Cliques"])), # Total de cliques ainda considera TODOS
             pico=safe_float(get_val(row, "Pico")),
             novos=novos_espectadores, 
             vendas=safe_float(get_val(row, ["Vendas", "Vendas Total"])),
             grupos=grupos,
-            total_leads_live=total_leads_live,
-            total_cliques_live=total_cliques_live
+            ativo_leads=ativo_leads,     # Salva os leads só do grupo principal
+            ativo_cliques=ativo_cliques  # Salva os cliques só do grupo principal
         ))
     return lives
 
@@ -352,7 +352,7 @@ for s in active_weeks:
     wl = [l for l in lives if l["semana"] == s]
     all_g = [g for l in wl for g in l["grupos"]]
     st_ = calc_stats(all_g)
-    tc = sum(l["cliquesTotal"] for l in wl)
+    tc = sum(l["cliquesTotal"] for l in wl) # tc soma todos os cliques (ativos + passados)
     tv = sum(l["vendas"] for l in wl)
     tne = sum(l["novos"] for l in wl) 
     m = sem_map.get(s, {})
@@ -365,24 +365,24 @@ for s in active_weeks:
     txS = (ls_ / le) * 100 if le > 0 else 0
     cpne = inv / tne if tne > 0 else 0 
 
-    # --- CÁLCULO DO CTR POR TIPO DE LIVE (LVP x LVG) ---
+    # --- CÁLCULO DE CTR LVP x LVG (ESTRITAMENTE GRUPO PRINCIPAL) ---
     lvp_lives = [live for live in wl if live['tipo'] == 'LVP']
     lvg_lives = [live for live in wl if live['tipo'] == 'LVG']
 
-    # Soma de leads e cliques de todas as LVPs da semana
-    total_leads_lvp = sum(live['total_leads_live'] for live in lvp_lives)
-    total_cliques_lvp = sum(live['cliquesTotal'] for live in lvp_lives)
-    ctr_lvp = round((total_cliques_lvp / total_leads_lvp) * 100, 1) if total_leads_lvp > 0 else 0.0
+    # Soma de leads e cliques APENAS do grupo ativo de todas as LVPs da semana
+    ativo_leads_lvp = sum(live['ativo_leads'] for live in lvp_lives)
+    ativo_cliques_lvp = sum(live['ativo_cliques'] for live in lvp_lives)
+    ctr_lvp = round((ativo_cliques_lvp / ativo_leads_lvp) * 100, 1) if ativo_leads_lvp > 0 else 0.0
 
-    # Soma de leads e cliques de todas as LVGs da semana
-    total_leads_lvg = sum(live['total_leads_live'] for live in lvg_lives)
-    total_cliques_lvg = sum(live['cliquesTotal'] for live in lvg_lives)
-    ctr_lvg = round((total_cliques_lvg / total_leads_lvg) * 100, 1) if total_leads_lvg > 0 else 0.0
+    # Soma de leads e cliques APENAS do grupo ativo de todas as LVGs da semana
+    ativo_leads_lvg = sum(live['ativo_leads'] for live in lvg_lives)
+    ativo_cliques_lvg = sum(live['ativo_cliques'] for live in lvg_lives)
+    ctr_lvg = round((ativo_cliques_lvg / ativo_leads_lvg) * 100, 1) if ativo_leads_lvg > 0 else 0.0
     
     weeks_data.append(dict(
         sn=s, **st_, tc=tc, pico=max((l["pico"] for l in wl), default=0),
         tne=tne, cpne=cpne, 
-        ctr_lvp=ctr_lvp, ctr_lvg=ctr_lvg, # Adicionado aqui para o gráfico
+        ctr_lvp=ctr_lvp, ctr_lvg=ctr_lvg, # Passa as métricas refinadas para o gráfico
         inv=inv, la=la, le=le, ls=ls_, cpl=cpl, txE=round(txE, 1), txS=round(txS, 1),
         vt=tv + m.get("vendas", 0),
         lives_label=" + ".join(l["label"] for l in wl), evs=wl, m=m
@@ -466,8 +466,8 @@ if st.session_state.sel_week is None:
         st.plotly_chart(fig_funnel, use_container_width=True, config=dict(displayModeBar=False))
     
     with col_g:
-        # NOVO GRÁFICO: CTR POR TIPO DE LIVE (LVP vs LVG)
-        st.markdown('<h4>CTR Médio: LVP vs LVG</h4>', unsafe_allow_html=True)
+        # GRÁFICO REFINADO: APENAS O CTR DO GRUPO ATIVO DA LVP x LVG
+        st.markdown('<h4>CTR do Grupo Principal: LVP vs LVG</h4>', unsafe_allow_html=True)
         fig2 = go.Figure()
         fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ctr_lvp"] for w in weeks_data], name="LVP (Prospecção)", marker_color="#3b82f6", text=[pct(w["ctr_lvp"]) if w["ctr_lvp"] > 0 else "" for w in weeks_data], textposition="auto"))
         fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ctr_lvg"] for w in weeks_data], name="LVG (Conteúdo)", marker_color="#f59e0b", text=[pct(w["ctr_lvg"]) if w["ctr_lvg"] > 0 else "" for w in weeks_data], textposition="auto"))
