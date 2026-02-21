@@ -263,6 +263,11 @@ def process_lives(df):
             ctr = round((cliques / leads) * 100, 1) if leads > 0 else 0.0
             if leads > 0 or cliques > 0:
                 grupos.append(dict(nome=f"GP{g}", leads=leads, cliques=cliques, ctr=ctr, ativo=f"GP{g}" == ga))
+        
+        # Calcula Totais da Live Específica para Média
+        total_leads_live = sum(g["leads"] for g in grupos)
+        total_cliques_live = sum(g["cliques"] for g in grupos)
+
         lives.append(dict(
             semana=semana, tipo=tipo, label=label,
             data=str(get_val(row, "Data")).strip(),
@@ -271,6 +276,8 @@ def process_lives(df):
             novos=novos_espectadores, 
             vendas=safe_float(get_val(row, ["Vendas", "Vendas Total"])),
             grupos=grupos,
+            total_leads_live=total_leads_live,
+            total_cliques_live=total_cliques_live
         ))
     return lives
 
@@ -357,10 +364,25 @@ for s in active_weeks:
     txE = (le / la) * 100 if la > 0 else 0
     txS = (ls_ / le) * 100 if le > 0 else 0
     cpne = inv / tne if tne > 0 else 0 
+
+    # --- CÁLCULO DO CTR POR TIPO DE LIVE (LVP x LVG) ---
+    lvp_lives = [live for live in wl if live['tipo'] == 'LVP']
+    lvg_lives = [live for live in wl if live['tipo'] == 'LVG']
+
+    # Soma de leads e cliques de todas as LVPs da semana
+    total_leads_lvp = sum(live['total_leads_live'] for live in lvp_lives)
+    total_cliques_lvp = sum(live['cliquesTotal'] for live in lvp_lives)
+    ctr_lvp = round((total_cliques_lvp / total_leads_lvp) * 100, 1) if total_leads_lvp > 0 else 0.0
+
+    # Soma de leads e cliques de todas as LVGs da semana
+    total_leads_lvg = sum(live['total_leads_live'] for live in lvg_lives)
+    total_cliques_lvg = sum(live['cliquesTotal'] for live in lvg_lives)
+    ctr_lvg = round((total_cliques_lvg / total_leads_lvg) * 100, 1) if total_leads_lvg > 0 else 0.0
     
     weeks_data.append(dict(
         sn=s, **st_, tc=tc, pico=max((l["pico"] for l in wl), default=0),
         tne=tne, cpne=cpne, 
+        ctr_lvp=ctr_lvp, ctr_lvg=ctr_lvg, # Adicionado aqui para o gráfico
         inv=inv, la=la, le=le, ls=ls_, cpl=cpl, txE=round(txE, 1), txS=round(txS, 1),
         vt=tv + m.get("vendas", 0),
         lives_label=" + ".join(l["label"] for l in wl), evs=wl, m=m
@@ -428,20 +450,27 @@ if st.session_state.sel_week is None:
     
     st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    col_g1, col_g2 = st.columns(2)
-    with col_g1:
-        st.markdown('<h4>Cliques por Semana</h4>', unsafe_allow_html=True)
-        fig1 = go.Figure()
-        fig1.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ac"] for w in weeks_data], name="Ativo", marker_color="#22c55e"))
-        fig1.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["pc"] for w in weeks_data], name="Passados", marker_color="#f59e0b"))
-        fig1.update_layout(**PLOT_LAYOUT, barmode="stack", height=280) 
-        st.plotly_chart(fig1, use_container_width=True, config=dict(displayModeBar=False))
+    col_f, col_g = st.columns([1, 1])
+    with col_f:
+        st.markdown('<h4>Funil de Conversão</h4>', unsafe_allow_html=True)
+        funnel_labels = ['Captação (Ads)', 'Entraram no GP', 'Ficaram no GP', 'Cliques no Link', 'Pico nas Lives', 'Vendas']
+        ficaram_grupo = tle - tls
+        funnel_values = [tla, tle, ficaram_grupo, total_cliques_all, total_pico_all, tv_all]
+        
+        fig_funnel = go.Figure(go.Funnel(
+            y=funnel_labels, x=funnel_values,
+            textinfo="value+percent initial",
+            marker=dict(color=["#3b82f6", "#22c55e", "#10b981", "#f59e0b", "#8b5cf6", "#e91e63"])
+        ))
+        fig_funnel.update_layout(**PLOT_LAYOUT, height=280)
+        st.plotly_chart(fig_funnel, use_container_width=True, config=dict(displayModeBar=False))
     
-    with col_g2:
-        st.markdown('<h4>CTR Médio por Semana</h4>', unsafe_allow_html=True)
+    with col_g:
+        # NOVO GRÁFICO: CTR POR TIPO DE LIVE (LVP vs LVG)
+        st.markdown('<h4>CTR Médio: LVP vs LVG</h4>', unsafe_allow_html=True)
         fig2 = go.Figure()
-        fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["aCTR"] for w in weeks_data], name="Ativo", marker_color="#22c55e", text=[pct(w["aCTR"]) for w in weeks_data], textposition="auto"))
-        fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["pCTR"] for w in weeks_data], name="Passados", marker_color="#f59e0b", text=[pct(w["pCTR"]) if w["pCTR"] > 0 else "" for w in weeks_data], textposition="auto"))
+        fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ctr_lvp"] for w in weeks_data], name="LVP (Prospecção)", marker_color="#3b82f6", text=[pct(w["ctr_lvp"]) if w["ctr_lvp"] > 0 else "" for w in weeks_data], textposition="auto"))
+        fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ctr_lvg"] for w in weeks_data], name="LVG (Conteúdo)", marker_color="#f59e0b", text=[pct(w["ctr_lvg"]) if w["ctr_lvg"] > 0 else "" for w in weeks_data], textposition="auto"))
         fig2.update_layout(**PLOT_LAYOUT, barmode="group", height=280) 
         fig2.update_yaxes(ticksuffix="%")
         st.plotly_chart(fig2, use_container_width=True, config=dict(displayModeBar=False))
@@ -474,7 +503,6 @@ else:
 
     m = w["m"] if isinstance(w["m"], dict) else {}
     
-    # 2 LINHAS COM 5 CARTÕES CADA (Para caber as Taxas, Leads e tudo mais)
     cols1 = st.columns(5)
     kpis_s1 = [
         ("Investimento", fmtR(m.get("investimento", 0)), "icon-red", "fa-solid fa-money-bill-wave"),
@@ -501,7 +529,6 @@ else:
 
     st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    # --- FUNIL DA SEMANA ---
     st.markdown('<h4>Funil de Conversão da Semana</h4>', unsafe_allow_html=True)
     funnel_labels = ['Captação (Ads)', 'Entraram no GP', 'Ficaram no GP', 'Cliques no Link', 'Pico nas Lives', 'Vendas']
     ficaram_grupo = w['le'] - w['ls']
