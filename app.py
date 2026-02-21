@@ -303,7 +303,7 @@ PLOT_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(family="Inter", color="#6b7280", size=11), 
-    margin=dict(l=30, r=10, t=20, b=20), 
+    margin=dict(l=30, r=10, t=10, b=20), 
     xaxis=dict(gridcolor="#f1f5f9", zerolinecolor="#f1f5f9"),
     yaxis=dict(gridcolor="#f1f5f9", zerolinecolor="#f1f5f9"),
     legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10), yanchor="bottom", y=1.0, xanchor="right", x=1),
@@ -345,7 +345,7 @@ for s in active_weeks:
     tc = sum(l["cliquesTotal"] for l in wl) 
     tv = sum(l["vendas"] for l in wl)
     tne = sum(l["novos"] for l in wl) 
-    twt = sum(l["watchtime"] for l in wl) # Cálculo do Watchtime Total do Microciclo
+    twt = sum(l["watchtime"] for l in wl) 
     
     m = sem_map.get(s, {})
     inv = m.get("investimento", 0)
@@ -452,21 +452,15 @@ if st.session_state.sel_week is None:
     
     st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    # --- PRIMEIRA LINHA DE GRÁFICOS ---
+    # --- PRIMEIRA LINHA DE GRÁFICOS: NOVO GRÁFICO DE CUSTOS (CPL vs CPNE) ---
     col_f, col_g = st.columns([1, 1])
     with col_f:
-        st.markdown('<h4>Funil de Conversão</h4>', unsafe_allow_html=True)
-        funnel_labels = ['Captação (Ads)', 'Entraram no GP', 'Ficaram no GP', 'Cliques no Link', 'Pico nas Lives', 'Vendas']
-        ficaram_grupo = tle - tls
-        funnel_values = [tla, tle, ficaram_grupo, total_cliques_all, total_pico_all, tv_all]
-        
-        fig_funnel = go.Figure(go.Funnel(
-            y=funnel_labels, x=funnel_values,
-            textinfo="value+percent initial",
-            marker=dict(color=["#3b82f6", "#22c55e", "#10b981", "#f59e0b", "#8b5cf6", "#e91e63"])
-        ))
-        fig_funnel.update_layout(**PLOT_LAYOUT, height=280)
-        st.plotly_chart(fig_funnel, use_container_width=True, config=dict(displayModeBar=False))
+        st.markdown('<h4>Evolução de Custos (CPL vs CPNE)</h4>', unsafe_allow_html=True)
+        fig1 = go.Figure()
+        fig1.add_trace(go.Scatter(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["cpl"] for w in weeks_data], mode='lines+markers', name="CPL", line=dict(color="#f59e0b", width=3), marker=dict(size=8)))
+        fig1.add_trace(go.Scatter(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["cpne"] for w in weeks_data], mode='lines+markers', name="CPNE", line=dict(color="#8b5cf6", width=3), marker=dict(size=8)))
+        fig1.update_layout(**PLOT_LAYOUT, height=280, hovermode="x unified")
+        st.plotly_chart(fig1, use_container_width=True, config=dict(displayModeBar=False))
     
     with col_g:
         st.markdown('<h4>CTR do Grupo Principal: LVP vs LVG</h4>', unsafe_allow_html=True)
@@ -479,7 +473,7 @@ if st.session_state.sel_week is None:
 
     st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    # --- SEGUNDA LINHA DE GRÁFICOS (NOVOS) ---
+    # --- SEGUNDA LINHA DE GRÁFICOS: WATCHTIME E NOVOS ESPECTADORES ---
     col_h, col_i = st.columns([1, 1])
     with col_h:
         st.markdown('<h4><i class="fa-solid fa-clock" style="color:var(--indigo-color); margin-right:6px"></i> Watchtime por Microciclo</h4>', unsafe_allow_html=True)
@@ -527,7 +521,6 @@ else:
 
     m = w["m"] if isinstance(w["m"], dict) else {}
     
-    # --- LINHA 1 (6 COLUNAS): AQUISIÇÃO, NOVO PÚBLICO E WATCHTIME ---
     cols1 = st.columns(6)
     kpis_s1 = [
         ("Investimento", fmtR(m.get("investimento", 0)), "icon-red", "fa-solid fa-money-bill-wave"),
@@ -535,20 +528,19 @@ else:
         ("CPL", fmtR(w["cpl"]) if w["la"] > 0 else "–", "icon-orange", "fa-solid fa-coins"),
         ("Novos Espect. (NE)", fmt(w["tne"]), "icon-purple", "fa-solid fa-user-plus"),
         ("CPNE", fmtR(w["cpne"]), "icon-orange", "fa-solid fa-tags"),
-        ("Watchtime", fmt_float(w["twt"]), "icon-indigo", "fa-solid fa-clock"), # ADICIONADO AQUI
+        ("Watchtime", fmt_float(w["twt"]), "icon-indigo", "fa-solid fa-clock"),
     ]
     for col, (l, v, ic, iname) in zip(cols1, kpis_s1):
         with col: st.markdown(kpi_new_html(l, v, ic, iname), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-bottom: 10px'></div>", unsafe_allow_html=True)
 
-    # --- LINHA 2 (6 COLUNAS): RETENÇÃO E CONVERSÃO COM LEADS SAÍDA ---
     cols2 = st.columns(6)
     kpis_s2 = [
         ("Leads Entrada", fmt(m.get("leadsEntrada", 0)), "icon-green", "fa-solid fa-users"),
         ("Taxa Entrada", pct(w["txE"]) if w["la"] > 0 else "–", "icon-green", "fa-solid fa-percentage"),
         ("Taxa de Saída", pct(w["txS"]) if w["le"] > 0 else "–", "icon-orange", "fa-solid fa-arrow-trend-down"),
-        ("Leads Saíram", fmt(w["ls"]), "icon-red", "fa-solid fa-user-minus"), # ADICIONADO EM NÚMEROS AQUI
+        ("Leads Saíram", fmt(w["ls"]), "icon-red", "fa-solid fa-user-minus"),
         ("Total Cliques", fmt(w["tc"]), "icon-blue", "fa-solid fa-pointer"),
         ("Vendas do MC", fmt(w["vt"]), "icon-pink", "fa-solid fa-ticket-alt"),
     ]
