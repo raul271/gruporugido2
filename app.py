@@ -264,20 +264,19 @@ def process_lives(df):
             if leads > 0 or cliques > 0:
                 grupos.append(dict(nome=f"GP{g}", leads=leads, cliques=cliques, ctr=ctr, ativo=f"GP{g}" == ga))
         
-        # --- CÁLCULO EXCLUSIVO DO GRUPO PRINCIPAL PARA ESTA LIVE ---
         ativo_leads = sum(g["leads"] for g in grupos if g["ativo"])
         ativo_cliques = sum(g["cliques"] for g in grupos if g["ativo"])
 
         lives.append(dict(
             semana=semana, tipo=tipo, label=label,
             data=str(get_val(row, "Data")).strip(),
-            cliquesTotal=safe_float(get_val(row, ["Cliques Total", "Cliques"])), # Total de cliques ainda considera TODOS
+            cliquesTotal=safe_float(get_val(row, ["Cliques Total", "Cliques"])), 
             pico=safe_float(get_val(row, "Pico")),
             novos=novos_espectadores, 
             vendas=safe_float(get_val(row, ["Vendas", "Vendas Total"])),
             grupos=grupos,
-            ativo_leads=ativo_leads,     # Salva os leads só do grupo principal
-            ativo_cliques=ativo_cliques  # Salva os cliques só do grupo principal
+            ativo_leads=ativo_leads,     
+            ativo_cliques=ativo_cliques  
         ))
     return lives
 
@@ -311,17 +310,19 @@ PLOT_LAYOUT = dict(
 if "page" not in st.session_state: st.session_state.page = "overview"
 if "sel_week" not in st.session_state: st.session_state.sel_week = None
 
+# ── FIXAÇÃO DO ID DA PLANILHA PARA CARREGAMENTO AUTOMÁTICO ──
+ID_DA_PLANILHA = "17WFm9kfssn7I0YhMIaZ3_6bEBHVVdJlD"
+if "sheet_id" not in st.session_state: 
+    st.session_state.sheet_id = ID_DA_PLANILHA
+
 # ── BARRA LATERAL (SIDEBAR) ─────────────────────────────
 with st.sidebar:
-    st.markdown("### ⚙️ Configurações")
-    st.caption("Conecte sua planilha do Google Sheets.")
-    sheet_id = st.text_input("ID da Planilha", value=st.session_state.get("sheet_id", ""), placeholder="Ex: 1AbCdEf...")
-    col1, col2 = st.columns(2)
-    with col1: connect = st.button("🔗 Conectar", use_container_width=True)
-    with col2: refresh = st.button("🔄 Atualizar", use_container_width=True)
-
-    if connect and sheet_id: st.session_state.sheet_id = sheet_id
-    if refresh: st.cache_data.clear()
+    st.markdown("### ⚙️ Conexão")
+    st.caption("Conectado automaticamente à planilha principal do Grupo Rugido.")
+    sheet_id = st.text_input("ID da Planilha", value=st.session_state.get("sheet_id", ""))
+    if st.button("🔄 Atualizar Dados", use_container_width=True):
+        st.session_state.sheet_id = sheet_id
+        st.cache_data.clear()
 
 # ── CARREGAMENTO DE DADOS ───────────────────────────────
 @st.cache_data(ttl=120, show_spinner=False)
@@ -332,7 +333,7 @@ def fetch_all(sid):
 
 sid = st.session_state.get("sheet_id", "")
 if sid:
-    with st.spinner("Carregando..."):
+    with st.spinner("Carregando Dados em Tempo Real..."):
         semanal, lives = fetch_all(sid)
     if semanal is None:
         st.error("Erro de conexão. Verifique o ID.")
@@ -352,7 +353,7 @@ for s in active_weeks:
     wl = [l for l in lives if l["semana"] == s]
     all_g = [g for l in wl for g in l["grupos"]]
     st_ = calc_stats(all_g)
-    tc = sum(l["cliquesTotal"] for l in wl) # tc soma todos os cliques (ativos + passados)
+    tc = sum(l["cliquesTotal"] for l in wl) 
     tv = sum(l["vendas"] for l in wl)
     tne = sum(l["novos"] for l in wl) 
     m = sem_map.get(s, {})
@@ -365,16 +366,13 @@ for s in active_weeks:
     txS = (ls_ / le) * 100 if le > 0 else 0
     cpne = inv / tne if tne > 0 else 0 
 
-    # --- CÁLCULO DE CTR LVP x LVG (ESTRITAMENTE GRUPO PRINCIPAL) ---
     lvp_lives = [live for live in wl if live['tipo'] == 'LVP']
     lvg_lives = [live for live in wl if live['tipo'] == 'LVG']
 
-    # Soma de leads e cliques APENAS do grupo ativo de todas as LVPs da semana
     ativo_leads_lvp = sum(live['ativo_leads'] for live in lvp_lives)
     ativo_cliques_lvp = sum(live['ativo_cliques'] for live in lvp_lives)
     ctr_lvp = round((ativo_cliques_lvp / ativo_leads_lvp) * 100, 1) if ativo_leads_lvp > 0 else 0.0
 
-    # Soma de leads e cliques APENAS do grupo ativo de todas as LVGs da semana
     ativo_leads_lvg = sum(live['ativo_leads'] for live in lvg_lives)
     ativo_cliques_lvg = sum(live['ativo_cliques'] for live in lvg_lives)
     ctr_lvg = round((ativo_cliques_lvg / ativo_leads_lvg) * 100, 1) if ativo_leads_lvg > 0 else 0.0
@@ -382,7 +380,7 @@ for s in active_weeks:
     weeks_data.append(dict(
         sn=s, **st_, tc=tc, pico=max((l["pico"] for l in wl), default=0),
         tne=tne, cpne=cpne, 
-        ctr_lvp=ctr_lvp, ctr_lvg=ctr_lvg, # Passa as métricas refinadas para o gráfico
+        ctr_lvp=ctr_lvp, ctr_lvg=ctr_lvg, 
         inv=inv, la=la, le=le, ls=ls_, cpl=cpl, txE=round(txE, 1), txS=round(txS, 1),
         vt=tv + m.get("vendas", 0),
         lives_label=" + ".join(l["label"] for l in wl), evs=wl, m=m
@@ -406,7 +404,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 status_icon = "🟢" if connected else "🟠"
-status_text = "Conectado" if connected else "Preview"
+status_text = "Sincronizado via Google Sheets" if connected else "Preview"
 st.markdown(f'<div class="sub-title">{status_icon} {status_text}</div>', unsafe_allow_html=True)
 st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
 
@@ -466,7 +464,6 @@ if st.session_state.sel_week is None:
         st.plotly_chart(fig_funnel, use_container_width=True, config=dict(displayModeBar=False))
     
     with col_g:
-        # GRÁFICO REFINADO: APENAS O CTR DO GRUPO ATIVO DA LVP x LVG
         st.markdown('<h4>CTR do Grupo Principal: LVP vs LVG</h4>', unsafe_allow_html=True)
         fig2 = go.Figure()
         fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ctr_lvp"] for w in weeks_data], name="LVP (Prospecção)", marker_color="#3b82f6", text=[pct(w["ctr_lvp"]) if w["ctr_lvp"] > 0 else "" for w in weeks_data], textposition="auto"))
