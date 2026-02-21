@@ -38,6 +38,7 @@ header, [data-testid="stHeader"] { background-color: transparent !important; }
 [data-testid="stSidebar"] { background-color: var(--bg-white); border-right: 1px solid var(--border-color); }
 #MainMenu, footer, [data-testid="stDecoration"] { display: none !important; }
 .block-container { padding-top: 1.5rem !important; padding-bottom: 1rem !important; max-width: 1200px !important; }
+[data-testid="collapsedControl"] { display: none !important; }
 
 h1, h2, h3, h4 { color: var(--text-primary); font-weight: 700; line-height: 1.2; margin: 0; }
 h4 { font-size: 1rem; margin-bottom: 0.8rem; margin-top: 1.5rem; }
@@ -146,8 +147,8 @@ button[kind="primary"]:hover { background: #d81b60 !important; border-color: #d8
     padding-bottom: 8px; border-bottom: 2px solid var(--primary-color);
     margin-top: 12px; margin-bottom: 16px;
 }
-.week-title-text { font-size: 1.3rem; font-weight: 800; color: var(--text-primary); margin: 0; }
-.week-subtitle { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
+.week-title-text { font-size: 1.3rem; font-weight: 800; color: var(--text-primary); margin: 0; display:flex; align-items:center; gap:8px;}
+.week-subtitle { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; display:flex; align-items:center;}
 
 .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 0px; }
 .brand-text { font-size: 20px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; }
@@ -241,7 +242,12 @@ def process_semanal(df):
         ls_ = safe_float(get_val(row, ["Leads Saida", "Leads Saída"]))
         vt = safe_float(get_val(row, "Vendas Total"))
         rec = safe_float(get_val(row, ["Receita (R$)", "Receita"]))
-        records.append(dict(semana=s, investimento=inv, leadsAds=la, leadsEntrada=le, leadsSaida=ls_, vendas=vt, receita=rec))
+        
+        # --- NOVA LÓGICA: PUXAR DATA DE CAPTAÇÃO ---
+        captacao = str(get_val(row, ["Captação", "Captacao", "Capitação"])).strip()
+        if str(captacao) in ["0", "0.0", "nan", "None"]: captacao = ""
+        
+        records.append(dict(semana=s, investimento=inv, leadsAds=la, leadsEntrada=le, leadsSaida=ls_, vendas=vt, receita=rec, captacao=captacao))
     return records
 
 def process_lives(df):
@@ -350,6 +356,7 @@ for s in active_weeks:
     txE = (le / la) * 100 if la > 0 else 0
     txS = (ls_ / le) * 100 if le > 0 else 0
     cpne = inv / tne if tne > 0 else 0 
+    captacao = m.get("captacao", "") # Puxa a data de captação
 
     lvp_lives = [live for live in wl if live['tipo'] == 'LVP']
     lvg_lives = [live for live in wl if live['tipo'] == 'LVG']
@@ -365,7 +372,7 @@ for s in active_weeks:
     weeks_data.append(dict(
         sn=s, **st_, tc=tc, pico=max((l["pico"] for l in wl), default=0),
         tne=tne, cpne=cpne, 
-        ctr_lvp=ctr_lvp, ctr_lvg=ctr_lvg, 
+        ctr_lvp=ctr_lvp, ctr_lvg=ctr_lvg, captacao=captacao,
         inv=inv, la=la, le=le, ls=ls_, cpl=cpl, txE=round(txE, 1), txS=round(txS, 1),
         vt=tv + m.get("vendas", 0),
         lives_label=" + ".join(l["label"] for l in wl), evs=wl, m=m
@@ -439,16 +446,22 @@ if st.session_state.sel_week is None:
     
     st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    col_g1, col_g2 = st.columns([1, 1])
-    with col_g1:
-        st.markdown('<h4>Cliques por Semana</h4>', unsafe_allow_html=True)
-        fig1 = go.Figure()
-        fig1.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ac"] for w in weeks_data], name="Ativo", marker_color="#22c55e"))
-        fig1.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["pc"] for w in weeks_data], name="Passados", marker_color="#f59e0b"))
-        fig1.update_layout(**PLOT_LAYOUT, barmode="stack", height=280) 
-        st.plotly_chart(fig1, use_container_width=True, config=dict(displayModeBar=False))
+    col_f, col_g = st.columns([1, 1])
+    with col_f:
+        st.markdown('<h4>Funil de Conversão</h4>', unsafe_allow_html=True)
+        funnel_labels = ['Captação (Ads)', 'Entraram no GP', 'Ficaram no GP', 'Cliques no Link', 'Pico nas Lives', 'Vendas']
+        ficaram_grupo = tle - tls
+        funnel_values = [tla, tle, ficaram_grupo, total_cliques_all, total_pico_all, tv_all]
+        
+        fig_funnel = go.Figure(go.Funnel(
+            y=funnel_labels, x=funnel_values,
+            textinfo="value+percent initial",
+            marker=dict(color=["#3b82f6", "#22c55e", "#10b981", "#f59e0b", "#8b5cf6", "#e91e63"])
+        ))
+        fig_funnel.update_layout(**PLOT_LAYOUT, height=280)
+        st.plotly_chart(fig_funnel, use_container_width=True, config=dict(displayModeBar=False))
     
-    with col_g2:
+    with col_g:
         st.markdown('<h4>CTR do Grupo Principal: LVP vs LVG</h4>', unsafe_allow_html=True)
         fig2 = go.Figure()
         fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ctr_lvp"] for w in weeks_data], name="LVP (Prospecção)", marker_color="#3b82f6", text=[pct(w["ctr_lvp"]) if w["ctr_lvp"] > 0 else "" for w in weeks_data], textposition="auto"))
@@ -463,7 +476,9 @@ if st.session_state.sel_week is None:
         with c1:
             st.markdown(f'<div style="background:#fff1f7;border-radius:6px;height:32px;display:flex;align-items:center;justify-content:center;border:1px solid #fce7f3"><span style="font-size:13px;font-weight:700;color:#e91e63">S{w["sn"]}</span></div>', unsafe_allow_html=True)
         with c2:
-            label = f"{w['lives_label']}  |  Novos: {fmt(w['tne'])}  |  CPNE: {fmtR(w['cpne'])}  |  Vendas: {fmt(w['vt'])}"
+            # Mostra o período de captação também no resumo da visão geral
+            cap_resumo = f"Captação: {w['captacao']}  |  " if w['captacao'] else ""
+            label = f"{w['lives_label']}  |  {cap_resumo}Novos: {fmt(w['tne'])}  |  CPNE: {fmtR(w['cpne'])}  |  Vendas: {fmt(w['vt'])}"
             if st.button(label, key=f"week_list_{w['sn']}", use_container_width=True, type="secondary"):
                 st.session_state.sel_week = w["sn"]
                 st.rerun()
@@ -476,33 +491,38 @@ else:
     w = next((w for w in weeks_data if w["sn"] == sw), None)
     if w is None: st.error("Semana não encontrada"); st.stop()
 
+    # --- INSERINDO A DATA DE CAPTAÇÃO NO TÍTULO ---
+    cap_text = f"<span style='margin-right: 15px;'><i class='fa-regular fa-calendar' style='color:var(--primary-color); margin-right:4px'></i> Captação: {w['captacao']}</span>" if w['captacao'] else ""
+
     st.markdown(f'''
     <div class="week-header">
-        <div class="week-title-text"><i class="fa-solid fa-calendar-day" style="color:var(--primary-color); margin-right:8px"></i> Semana {sw}</div>
-        <div class="week-subtitle">{len(w['evs'])} live(s) analisada(s)</div>
+        <div class="week-title-text"><i class="fa-solid fa-bullseye" style="color:var(--primary-color); margin-right:8px"></i> Semana {sw}</div>
+        <div class="week-subtitle">{cap_text}{len(w['evs'])} live(s) analisada(s)</div>
     </div>
     ''', unsafe_allow_html=True)
 
     m = w["m"] if isinstance(w["m"], dict) else {}
     
+    # --- LINHA 1: AQUISIÇÃO E NOVO PÚBLICO ---
     cols1 = st.columns(5)
     kpis_s1 = [
         ("Investimento", fmtR(m.get("investimento", 0)), "icon-red", "fa-solid fa-money-bill-wave"),
         ("Leads Ads", fmt(m.get("leadsAds", 0)), "icon-blue", "fa-solid fa-bullseye"),
-        ("Leads Entrada", fmt(m.get("leadsEntrada", 0)), "icon-green", "fa-solid fa-user-plus"),
-        ("Taxa Entrada", pct(w["txE"]) if w["la"] > 0 else "–", "icon-green", "fa-solid fa-percentage"),
-        ("Taxa de Saída", pct(w["txS"]) if w["le"] > 0 else "–", "icon-orange", "fa-solid fa-user-minus"),
+        ("CPL", fmtR(w["cpl"]) if w["la"] > 0 else "–", "icon-orange", "fa-solid fa-coins"),
+        ("Novos Espect.", fmt(w["tne"]), "icon-purple", "fa-solid fa-user-plus"),
+        ("CPNE", fmtR(w["cpne"]), "icon-orange", "fa-solid fa-tags"),
     ]
     for col, (l, v, ic, iname) in zip(cols1, kpis_s1):
         with col: st.markdown(kpi_new_html(l, v, ic, iname), unsafe_allow_html=True)
     
     st.markdown("<div style='margin-bottom: 10px'></div>", unsafe_allow_html=True)
 
+    # --- LINHA 2: RETENÇÃO E CONVERSÃO ---
     cols2 = st.columns(5)
     kpis_s2 = [
-        ("CPL", fmtR(w["cpl"]) if w["la"] > 0 else "–", "icon-orange", "fa-solid fa-coins"),
-        ("Novos Espect.", fmt(w["tne"]), "icon-purple", "fa-solid fa-user-plus"),
-        ("CPNE", fmtR(w["cpne"]), "icon-orange", "fa-solid fa-tags"),
+        ("Leads Entrada", fmt(m.get("leadsEntrada", 0)), "icon-green", "fa-solid fa-users"),
+        ("Taxa Entrada", pct(w["txE"]) if w["la"] > 0 else "–", "icon-green", "fa-solid fa-percentage"),
+        ("Taxa de Saída", pct(w["txS"]) if w["le"] > 0 else "–", "icon-orange", "fa-solid fa-user-minus"),
         ("Total Cliques", fmt(w["tc"]), "icon-blue", "fa-solid fa-pointer"),
         ("Vendas Semana", fmt(w["vt"]), "icon-pink", "fa-solid fa-ticket-alt"),
     ]
@@ -511,7 +531,6 @@ else:
 
     st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    # --- GRÁFICO DE JORNADA: ISOLANDO A 1ª LVP E O GRUPO ATIVO ---
     st.markdown('<h4>Jornada de Conversão (1ª LVP - Grupo Principal)</h4>', unsafe_allow_html=True)
     
     primeira_lvp = next((ev for ev in w["evs"] if ev["tipo"] == "LVP"), None)
@@ -541,7 +560,7 @@ else:
         text=text_vals,
         textposition='top center',
         textfont=dict(size=11, color='#111827'),
-        cliponaxis=False, # CORREÇÃO: O comando vem AQUI na linha, e não dentro do marker!
+        cliponaxis=False,
         marker=dict(size=12, color='#e91e63', line=dict(width=2, color='white')),
         line=dict(width=4, color='#e91e63', shape='spline'), 
         fill='tozeroy', 
