@@ -25,6 +25,7 @@ st.markdown("""
     --success-color: #22c55e;
     --warning-color: #f59e0b;
     --danger-color: #ef4444;
+    --purple-color: #8b5cf6;
     --text-primary: #111827;
     --text-secondary: #6b7280;
     --bg-light: #f8fafc; 
@@ -32,49 +33,47 @@ st.markdown("""
     --border-color: #e2e8f0;
 }
 
-/* Reset e Contêiner Principal */
 .stApp { background-color: var(--bg-light); font-family: 'Inter', sans-serif; }
 header, [data-testid="stHeader"] { background-color: transparent !important; }
 [data-testid="stSidebar"] { background-color: var(--bg-white); border-right: 1px solid var(--border-color); }
 #MainMenu, footer, [data-testid="stDecoration"] { display: none !important; }
-.block-container { padding-top: 1.5rem !important; padding-bottom: 1rem !important; max-width: 1100px !important; }
+.block-container { padding-top: 1.5rem !important; padding-bottom: 1rem !important; max-width: 1200px !important; }
 
-/* Tipografia */
 h1, h2, h3, h4 { color: var(--text-primary); font-weight: 700; line-height: 1.2; margin: 0; }
 h4 { font-size: 1rem; margin-bottom: 0.8rem; margin-top: 1.5rem; }
 .stCaption { color: var(--text-secondary); font-size: 0.85rem; }
 
-/* --- NOVOS CARDS DE KPI HORIZONTAIS (SLIM) --- */
+/* --- NOVOS CARDS DE KPI HORIZONTAIS --- */
 .kpi-card-new {
     background: var(--bg-white);
     border-radius: 8px;
-    padding: 10px 14px;
+    padding: 8px 12px;
     border: 1px solid var(--border-color);
     box-shadow: 0 1px 2px rgba(0,0,0,0.02);
     display: flex;
     align-items: center; 
-    gap: 12px;
-    height: 64px; 
+    gap: 10px;
+    height: 60px; 
 }
 .kpi-icon {
-    width: 36px; height: 36px;
+    width: 32px; height: 32px;
     border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
+    font-size: 14px;
     flex-shrink: 0; 
 }
 .kpi-content { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
-.kpi-label { font-size: 0.65rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
-.kpi-value { font-size: 1.15rem; font-weight: 800; color: var(--text-primary); line-height: 1; white-space: nowrap; }
+.kpi-label { font-size: 0.6rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.kpi-value { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); line-height: 1; white-space: nowrap; }
 
-/* Variantes de cor para os ícones */
 .icon-blue { background-color: #e0f2fe; color: var(--secondary-color); }
 .icon-green { background-color: #dcfce7; color: var(--success-color); }
 .icon-orange { background-color: #ffedd5; color: var(--warning-color); }
 .icon-red { background-color: #fee2e2; color: var(--danger-color); }
 .icon-pink { background-color: #fce7f3; color: var(--primary-color); }
+.icon-purple { background-color: #ede9fe; color: var(--purple-color); }
 
-/* --- BARRA DE MÉTTRICAS DA SEMANA (Slim) --- */
+/* --- BARRA DE MÉTTRICAS DA SEMANA --- */
 .metric-bar-new {
     background: var(--bg-white);
     border-radius: 8px;
@@ -90,39 +89,25 @@ h4 { font-size: 1rem; margin-bottom: 0.8rem; margin-top: 1.5rem; }
 .mb-label { font-size: 0.65rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
 .mb-value { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); line-height: 1; }
 
-/* --- ACORDEÃO DAS LIVES (Slim) --- */
+/* --- ACORDEÃO DAS LIVES --- */
 .streamlit-expanderHeader {
-    background-color: var(--bg-white);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 8px 14px; 
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--text-primary);
-    margin-bottom: 4px;
+    background-color: var(--bg-white); border: 1px solid var(--border-color);
+    border-radius: 6px; padding: 8px 14px; font-weight: 600; font-size: 0.9rem;
+    color: var(--text-primary); margin-bottom: 4px;
 }
 .streamlit-expanderHeader:hover { border-color: var(--primary-color); background-color: #fff1f7; }
 .streamlit-expanderContent {
-    background-color: var(--bg-white);
-    border: 1px solid var(--border-color);
-    border-top: none;
-    border-bottom-left-radius: 6px;
-    border-bottom-right-radius: 6px;
-    padding: 12px 16px; 
-    margin-top: -4px; 
-    margin-bottom: 8px;
+    background-color: var(--bg-white); border: 1px solid var(--border-color);
+    border-top: none; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;
+    padding: 12px 16px; margin-top: -4px; margin-bottom: 8px;
 }
 .live-summary-metrics {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 10px; 
-    text-align: center;
-    padding-bottom: 10px;
-    border-bottom: 1px dashed var(--border-color);
+    display: grid; grid-template-columns: repeat(5, 1fr); /* Atualizado para 5 colunas */
+    gap: 12px; margin-bottom: 10px; text-align: center;
+    padding-bottom: 10px; border-bottom: 1px dashed var(--border-color);
 }
 
-/* --- TABELA DE GRUPOS (Slim) --- */
+/* --- TABELA DE GRUPOS --- */
 .styled-table {
     width: 100%; border-collapse: collapse; margin: 4px 0 0 0; 
     font-size: 0.8rem; border-radius: 6px; overflow: hidden;
@@ -141,67 +126,34 @@ h4 { font-size: 1rem; margin-bottom: 0.8rem; margin-top: 1.5rem; }
 .ctr-med { background-color: #ffedd5; color: var(--warning-color); }
 .ctr-low { background-color: #fee2e2; color: var(--danger-color); }
 
-/* --- BOTÕES DE NAVEGAÇÃO (TABS COMPACTAS E CORES INVERTIDAS) --- */
+/* --- BOTÕES DE NAVEGAÇÃO --- */
 button[kind="secondary"] {
-    background: var(--bg-white) !important; 
-    color: var(--text-secondary) !important;
-    border: 1px solid var(--border-color) !important; 
-    border-radius: 6px !important;
-    font-weight: 600 !important; 
-    font-size: 13px !important; 
-    padding: 6px 16px !important;
+    background: var(--bg-white) !important; color: var(--text-secondary) !important;
+    border: 1px solid var(--border-color) !important; border-radius: 6px !important;
+    font-weight: 600 !important; font-size: 13px !important; padding: 6px 16px !important;
 }
-button[kind="secondary"]:hover { 
-    border-color: var(--primary-color) !important; 
-    color: var(--primary-color) !important; 
-    background: #fff1f7 !important; 
-}
-/* BOTÃO ATIVO (ROSA COM TEXTO BRANCO) */
+button[kind="secondary"]:hover { border-color: var(--primary-color) !important; color: var(--primary-color) !important; background: #fff1f7 !important; }
 button[kind="primary"] {
-    background: var(--primary-color) !important; 
-    color: #ffffff !important;
-    border: 1px solid var(--primary-color) !important; 
-    border-radius: 6px !important;
-    font-weight: 700 !important; 
-    font-size: 13px !important; 
-    padding: 6px 16px !important;
+    background: var(--primary-color) !important; color: #ffffff !important;
+    border: 1px solid var(--primary-color) !important; border-radius: 6px !important;
+    font-weight: 700 !important; font-size: 13px !important; padding: 6px 16px !important;
     box-shadow: 0 2px 4px rgba(233, 30, 99, 0.2);
 }
-button[kind="primary"]:hover {
-    background: #d81b60 !important;
-    border-color: #d81b60 !important;
-    color: #ffffff !important;
-}
+button[kind="primary"]:hover { background: #d81b60 !important; border-color: #d81b60 !important; color: #ffffff !important; }
 
-/* --- TÍTULO DA SEÇÃO DA SEMANA --- */
 .week-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 8px;
-    border-bottom: 2px solid var(--primary-color);
-    margin-top: 12px;
-    margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 8px; border-bottom: 2px solid var(--primary-color);
+    margin-top: 12px; margin-bottom: 16px;
 }
-.week-title-text {
-    font-size: 1.3rem;
-    font-weight: 800;
-    color: var(--text-primary);
-    margin: 0;
-}
-.week-subtitle {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-}
+.week-title-text { font-size: 1.3rem; font-weight: 800; color: var(--text-primary); margin: 0; }
+.week-subtitle { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
 
-/* --- HEADER PRINCIPAL DA PÁGINA --- */
 .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 0px; }
 .brand-text { font-size: 20px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; }
 .brand-highlight { color: var(--primary-color); }
 .sub-title { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; margin-top: -2px;}
 
-/* Remove margem extra dos gráficos */
 .stPlotlyChart { margin-top: -15px; }
 </style>
 """, unsafe_allow_html=True)
@@ -301,6 +253,10 @@ def process_lives(df):
         label = str(get_val(row, "Label")).strip()
         if not semana or not tipo or not label or tipo == "NAN": continue
         ga = str(get_val(row, "Grupo Ativo")).strip().upper()
+        
+        # BUSCANDO A NOVA COLUNA DE NOVOS ESPECTADORES
+        novos_espectadores = safe_float(get_val(row, ["Novos Espectadores", "Espectadores Novos", "Novos"]))
+        
         grupos = []
         for g in range(1, MAX_GP + 1):
             leads = safe_float(get_group_val(row, "leads", g))
@@ -313,6 +269,7 @@ def process_lives(df):
             data=str(get_val(row, "Data")).strip(),
             cliquesTotal=safe_float(get_val(row, ["Cliques Total", "Cliques"])),
             pico=safe_float(get_val(row, "Pico")),
+            novos=novos_espectadores, # <--- ADICIONADO AQUI
             vendas=safe_float(get_val(row, ["Vendas", "Vendas Total"])),
             grupos=grupos,
         ))
@@ -377,7 +334,7 @@ if sid:
     connected = True
 else:
     semanal = [dict(semana=1, investimento=0, leadsAds=0, leadsEntrada=0, leadsSaida=0, vendas=0, receita=0)]
-    lives = [dict(semana=1, tipo="LVP", label="Preview LVP", data="01/01", cliquesTotal=100, pico=50, vendas=0, grupos=[dict(nome="GP1", leads=150, cliques=100, ctr=66.7, ativo=True)])]
+    lives = [dict(semana=1, tipo="LVP", label="Preview", data="01/01", cliquesTotal=100, pico=50, novos=20, vendas=0, grupos=[dict(nome="GP1", leads=150, cliques=100, ctr=66.7, ativo=True)])]
     connected = False
 
 # ── CÁLCULOS GERAIS ─────────────────────────────────────
@@ -391,6 +348,7 @@ for s in active_weeks:
     st_ = calc_stats(all_g)
     tc = sum(l["cliquesTotal"] for l in wl)
     tv = sum(l["vendas"] for l in wl)
+    tne = sum(l["novos"] for l in wl) # Soma dos Novos Espectadores da Semana
     m = sem_map.get(s, {})
     inv = m.get("investimento", 0)
     la = m.get("leadsAds", 0)
@@ -399,8 +357,11 @@ for s in active_weeks:
     cpl = inv / la if la > 0 else 0
     txE = (le / la) * 100 if la > 0 else 0
     txS = (ls_ / le) * 100 if le > 0 else 0
+    cpne = inv / tne if tne > 0 else 0 # Custo por Novo Espectador
+    
     weeks_data.append(dict(
         sn=s, **st_, tc=tc, pico=max((l["pico"] for l in wl), default=0),
+        tne=tne, cpne=cpne, # Adicionado
         inv=inv, la=la, le=le, ls=ls_, cpl=cpl, txE=round(txE, 1), txS=round(txS, 1),
         vt=tv + m.get("vendas", 0),
         lives_label=" + ".join(l["label"] for l in wl), evs=wl, m=m
@@ -410,7 +371,11 @@ ti = sum(w["inv"] for w in weeks_data)
 tla = sum(w["la"] for w in weeks_data)
 tle = sum(w["le"] for w in weeks_data)
 tls = sum(w["ls"] for w in weeks_data)
+total_cliques_all = sum(w["tc"] for w in weeks_data)
+total_pico_all = sum(w["pico"] for w in weeks_data)
 tv_all = sum(w["vt"] for w in weeks_data)
+total_novos_all = sum(w["tne"] for w in weeks_data)
+cpne_global = ti / total_novos_all if total_novos_all > 0 else 0
 
 # ── CABEÇALHO PRINCIPAL ─────────────────────────────────
 st.markdown("""
@@ -424,10 +389,8 @@ status_text = "Conectado" if connected else "Preview"
 st.markdown(f'<div class="sub-title">{status_icon} {status_text}</div>', unsafe_allow_html=True)
 st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
 
-# ── NAVEGAÇÃO SUPERIOR (ABAS COMPACTAS À ESQUERDA) ──────
+# ── NAVEGAÇÃO SUPERIOR ──────────────────────────────────
 num_weeks = len(active_weeks)
-# Lógica para garantir que os botões fiquem alinhados à esquerda:
-# A última coluna funciona como um "espaçador fantasma" para empurrar o resto.
 spacer_width = max(1, 10 - (1.2 + num_weeks * 0.8)) 
 nav_cols = st.columns([1.2] + [0.8] * num_weeks + [spacer_width])
 
@@ -452,33 +415,44 @@ st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
 if st.session_state.sel_week is None:
     st.markdown('<div class="week-header"><div class="week-title-text"><i class="fa-solid fa-chart-line" style="color:var(--primary-color); margin-right:8px"></i> Visão Geral do Lançamento</div><div class="week-subtitle">Acumulado de todas as semanas</div></div>', unsafe_allow_html=True)
 
-    cols = st.columns(4)
+    # NOVO: 6 colunas para englobar os dados de Novos Espectadores e CPNE
+    cols = st.columns(6)
     kpis_overview = [
         ("Investimento", fmtR(ti), "icon-red", "fa-solid fa-money-bill-wave"),
         ("Leads Ads", fmt(tla), "icon-blue", "fa-solid fa-bullseye"),
-        ("CPL Médio", fmtR(ti / tla) if tla > 0 else "–", "icon-orange", "fa-solid fa-coins"),
-        ("Vendas Total", fmt(tv_all), "icon-pink", "fa-solid fa-ticket-alt"),
+        ("CPL", fmtR(ti / tla) if tla > 0 else "–", "icon-orange", "fa-solid fa-coins"),
+        ("Novos Espect.", fmt(total_novos_all), "icon-purple", "fa-solid fa-user-plus"), # NOVA MÉTRICA
+        ("CPNE", fmtR(cpne_global), "icon-orange", "fa-solid fa-tags"), # NOVA MÉTRICA
+        ("Vendas", fmt(tv_all), "icon-pink", "fa-solid fa-ticket-alt"),
     ]
     for col, (label, value, icon_cls, icon_name) in zip(cols, kpis_overview):
         with col: st.markdown(kpi_new_html(label, value, icon_cls, icon_name), unsafe_allow_html=True)
     
-    st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    col_g1, col_g2 = st.columns(2)
-    with col_g1:
-        st.markdown('<h4>Cliques por Semana</h4>', unsafe_allow_html=True)
-        fig1 = go.Figure()
-        fig1.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["ac"] for w in weeks_data], name="Ativo", marker_color="#22c55e"))
-        fig1.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["pc"] for w in weeks_data], name="Passados", marker_color="#f59e0b"))
-        fig1.update_layout(**PLOT_LAYOUT, barmode="stack", height=220) 
-        st.plotly_chart(fig1, use_container_width=True, config=dict(displayModeBar=False))
+    # NOVO: GRÁFICO DE FUNIL GLOBAL
+    col_f, col_g = st.columns([1, 1])
+    with col_f:
+        st.markdown('<h4>Funil de Conversão</h4>', unsafe_allow_html=True)
+        # Lógica rigorosa de funil ditada por você
+        funnel_labels = ['Captação (Ads)', 'Entraram no GP', 'Ficaram no GP', 'Cliques no Link', 'Pico nas Lives', 'Vendas']
+        ficaram_grupo = tle - tls
+        funnel_values = [tla, tle, ficaram_grupo, total_cliques_all, total_pico_all, tv_all]
+        
+        fig_funnel = go.Figure(go.Funnel(
+            y=funnel_labels, x=funnel_values,
+            textinfo="value+percent initial",
+            marker=dict(color=["#3b82f6", "#22c55e", "#10b981", "#f59e0b", "#8b5cf6", "#e91e63"])
+        ))
+        fig_funnel.update_layout(**PLOT_LAYOUT, height=280)
+        st.plotly_chart(fig_funnel, use_container_width=True, config=dict(displayModeBar=False))
     
-    with col_g2:
-        st.markdown('<h4>CTR Médio</h4>', unsafe_allow_html=True)
+    with col_g:
+        st.markdown('<h4>CTR Médio por Semana</h4>', unsafe_allow_html=True)
         fig2 = go.Figure()
         fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["aCTR"] for w in weeks_data], name="Ativo", marker_color="#22c55e", text=[pct(w["aCTR"]) for w in weeks_data], textposition="auto"))
         fig2.add_trace(go.Bar(x=[f"S{w['sn']}" for w in weeks_data], y=[w["pCTR"] for w in weeks_data], name="Passados", marker_color="#f59e0b", text=[pct(w["pCTR"]) if w["pCTR"] > 0 else "" for w in weeks_data], textposition="auto"))
-        fig2.update_layout(**PLOT_LAYOUT, barmode="group", height=220) 
+        fig2.update_layout(**PLOT_LAYOUT, barmode="group", height=280) 
         fig2.update_yaxes(ticksuffix="%")
         st.plotly_chart(fig2, use_container_width=True, config=dict(displayModeBar=False))
 
@@ -488,7 +462,7 @@ if st.session_state.sel_week is None:
         with c1:
             st.markdown(f'<div style="background:#fff1f7;border-radius:6px;height:32px;display:flex;align-items:center;justify-content:center;border:1px solid #fce7f3"><span style="font-size:13px;font-weight:700;color:#e91e63">S{w["sn"]}</span></div>', unsafe_allow_html=True)
         with c2:
-            label = f"{w['lives_label']}  |  Invest: {fmtR(w['inv'])}  |  Vendas: {fmt(w['vt'])}"
+            label = f"{w['lives_label']}  |  Novos: {fmt(w['tne'])}  |  CPNE: {fmtR(w['cpne'])}  |  Vendas: {fmt(w['vt'])}"
             if st.button(label, key=f"week_list_{w['sn']}", use_container_width=True, type="secondary"):
                 st.session_state.sel_week = w["sn"]
                 st.rerun()
@@ -510,12 +484,13 @@ else:
 
     m = w["m"] if isinstance(w["m"], dict) else {}
     
+    # KPIs TELA DA SEMANA COM CPNE INCLUSO
     cols1 = st.columns(4)
     kpis_s1 = [
         ("Investimento", fmtR(m.get("investimento", 0)), "icon-red", "fa-solid fa-money-bill-wave"),
         ("Leads Ads", fmt(m.get("leadsAds", 0)), "icon-blue", "fa-solid fa-bullseye"),
-        ("CPL", fmtR(w["cpl"]) if w["la"] > 0 else "–", "icon-orange", "fa-solid fa-coins"),
-        ("Vendas", fmt(w["vt"]), "icon-pink", "fa-solid fa-ticket-alt"),
+        ("Novos Espect.", fmt(w["tne"]), "icon-purple", "fa-solid fa-user-plus"), # NOVO
+        ("CPNE", fmtR(w["cpne"]), "icon-orange", "fa-solid fa-tags"), # NOVO
     ]
     for col, (l, v, ic, iname) in zip(cols1, kpis_s1):
         with col: st.markdown(kpi_new_html(l, v, ic, iname), unsafe_allow_html=True)
@@ -525,27 +500,26 @@ else:
     cols2 = st.columns(4)
     kpis_s2 = [
         ("Leads Entrada", fmt(m.get("leadsEntrada", 0)), "icon-green", "fa-solid fa-user-plus"),
-        ("Leads Saída", fmt(m.get("leadsSaida", 0)), "icon-orange", "fa-solid fa-user-minus"),
-        ("Taxa Entrada", pct(w["txE"]) if w["la"] > 0 else "–", "icon-green", "fa-solid fa-percentage"),
-        ("Taxa Saída", pct(w["txS"]) if w["le"] > 0 else "–", "icon-orange", "fa-solid fa-arrow-right-from-bracket"),
+        ("Taxa de Fuga", pct(w["txS"]) if w["le"] > 0 else "–", "icon-orange", "fa-solid fa-user-minus"),
+        ("Total Cliques", fmt(w["tc"]), "icon-blue", "fa-solid fa-pointer"),
+        ("Vendas Semana", fmt(w["vt"]), "icon-pink", "fa-solid fa-ticket-alt"),
     ]
     for col, (l, v, ic, iname) in zip(cols2, kpis_s2):
         with col: st.markdown(kpi_new_html(l, v, ic, iname), unsafe_allow_html=True)
 
     st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
 
-    st.markdown(f'<div class="metric-bar-new"><div class="mb-item"><div class="mb-label">Cliques Total</div><div class="mb-value">{fmt(w["tc"])}</div></div><div class="mb-item"><div class="mb-label">Pico Máx</div><div class="mb-value" style="color:var(--primary-color)">{fmt(w["pico"])}</div></div><div class="mb-item"><div class="mb-label">CTR Ativo Médio</div><div class="mb-value" style="color:var(--success-color)">{pct(w["aCTR"])}</div></div><div class="mb-item"><div class="mb-label">CTR Passados Médio</div><div class="mb-value" style="color:var(--warning-color)">{pct(w["pCTR"]) if w["pCTR"] > 0 else "–"}</div></div><div class="mb-item"><div class="mb-label">Grupo Ativo</div><div class="mb-value" style="color:var(--primary-color)">{w["ga"]}</div></div></div>', unsafe_allow_html=True)
-
     st.markdown("<h4>Detalhamento das Lives</h4>", unsafe_allow_html=True)
 
     for i, ev in enumerate(w["evs"]):
         tipo_badge_color = "#3b82f6" if ev["tipo"] == "LVP" else "#f59e0b"
-        expander_title = f"{ev['label']} ({ev['data']}) | Vendas: {fmt(ev['vendas'])}"
+        expander_title = f"{ev['label']} ({ev['data']}) | Novos: {fmt(ev['novos'])} | Vendas: {fmt(ev['vendas'])}"
         
         with st.expander(expander_title, expanded=(i==0)):
-            st.markdown(f'<div class="live-summary-metrics"><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Tipo</div><div style="font-weight:800;color:{tipo_badge_color}">{ev["tipo"]}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Cliques</div><div style="font-weight:800">{fmt(ev["cliquesTotal"])}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Pico</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["pico"])}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Vendas</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["vendas"])}</div></div></div>', unsafe_allow_html=True)
+            # ATUALIZADO PARA 5 COLUNAS NO ACORDEÃO (INCLUINDO NOVOS)
+            st.markdown(f'<div class="live-summary-metrics"><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Tipo</div><div style="font-weight:800;color:{tipo_badge_color}">{ev["tipo"]}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Cliques</div><div style="font-weight:800">{fmt(ev["cliquesTotal"])}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Pico</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["pico"])}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Novos</div><div style="font-weight:800;color:var(--purple-color)">{fmt(ev["novos"])}</div></div><div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Vendas</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["vendas"])}</div></div></div>', unsafe_allow_html=True)
             st.markdown(generate_groups_table(ev["grupos"]), unsafe_allow_html=True)
 
 # ── RODAPÉ ──────────────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
-st.markdown('<div style="text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #e2e8f0;padding-top:16px">Grupo Rugido · Dashboard de Performance</div>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #e2e8f0;padding-top:16px">Grupo Rugido · Gestão de Audiência</div>', unsafe_allow_html=True)
