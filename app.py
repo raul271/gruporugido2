@@ -303,7 +303,7 @@ PLOT_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(family="Inter", color="#6b7280", size=11), 
-    margin=dict(l=30, r=10, t=10, b=20), 
+    margin=dict(l=30, r=10, t=20, b=20), 
     xaxis=dict(gridcolor="#f1f5f9", zerolinecolor="#f1f5f9"),
     yaxis=dict(gridcolor="#f1f5f9", zerolinecolor="#f1f5f9"),
     legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10), yanchor="bottom", y=1.0, xanchor="right", x=1),
@@ -452,13 +452,36 @@ if st.session_state.sel_week is None:
     
     st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    # --- PRIMEIRA LINHA DE GRÁFICOS: NOVO GRÁFICO DE CUSTOS (CPL vs CPNE) ---
+    # --- PRIMEIRA LINHA DE GRÁFICOS: COM HOVER FORMATADO EM R$ ---
     col_f, col_g = st.columns([1, 1])
     with col_f:
         st.markdown('<h4>Evolução de Custos (CPL vs CPNE)</h4>', unsafe_allow_html=True)
         fig1 = go.Figure()
-        fig1.add_trace(go.Scatter(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["cpl"] for w in weeks_data], mode='lines+markers', name="CPL", line=dict(color="#f59e0b", width=3), marker=dict(size=8)))
-        fig1.add_trace(go.Scatter(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["cpne"] for w in weeks_data], mode='lines+markers', name="CPNE", line=dict(color="#8b5cf6", width=3), marker=dict(size=8)))
+        
+        # Adicionando o CPL formatado no Hover (text)
+        fig1.add_trace(go.Scatter(
+            x=[f"MC {w['sn']}" for w in weeks_data], 
+            y=[w["cpl"] for w in weeks_data], 
+            mode='lines+markers', 
+            name="CPL", 
+            text=[fmtR(w["cpl"]) for w in weeks_data],
+            hovertemplate="%{text}<extra></extra>", # Isso força o hover a mostrar o R$ bonitinho
+            line=dict(color="#f59e0b", width=3), 
+            marker=dict(size=8)
+        ))
+        
+        # Adicionando o CPNE formatado no Hover (text)
+        fig1.add_trace(go.Scatter(
+            x=[f"MC {w['sn']}" for w in weeks_data], 
+            y=[w["cpne"] for w in weeks_data], 
+            mode='lines+markers', 
+            name="CPNE", 
+            text=[fmtR(w["cpne"]) for w in weeks_data],
+            hovertemplate="%{text}<extra></extra>", # Isso força o hover a mostrar o R$ bonitinho
+            line=dict(color="#8b5cf6", width=3), 
+            marker=dict(size=8)
+        ))
+        
         fig1.update_layout(**PLOT_LAYOUT, height=280, hovermode="x unified")
         st.plotly_chart(fig1, use_container_width=True, config=dict(displayModeBar=False))
     
@@ -473,7 +496,6 @@ if st.session_state.sel_week is None:
 
     st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
 
-    # --- SEGUNDA LINHA DE GRÁFICOS: WATCHTIME E NOVOS ESPECTADORES ---
     col_h, col_i = st.columns([1, 1])
     with col_h:
         st.markdown('<h4><i class="fa-solid fa-clock" style="color:var(--indigo-color); margin-right:6px"></i> Watchtime por Microciclo</h4>', unsafe_allow_html=True)
