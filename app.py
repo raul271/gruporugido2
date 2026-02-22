@@ -242,8 +242,15 @@ def process_semanal(df):
         
         captacao = str(get_val(row, ["Captação", "Captacao", "Capitação"])).strip()
         if str(captacao) in ["0", "0.0", "nan", "None"]: captacao = ""
+
+        # --- NOVAS COLUNAS DO MICROCICLO COMPLETO ---
+        ne_mc = safe_float(get_val(row, ["NE-MC", "NEMC", "NE MC", "Novos Espectadores"]))
+        wt_mc = safe_float(get_val(row, ["WT-MC", "WTMC", "WT MC", "Watchtime"]))
         
-        records.append(dict(semana=s, investimento=inv, leadsAds=la, leadsEntrada=le, leadsSaida=ls_, vendas=vt, receita=rec, captacao=captacao))
+        records.append(dict(
+            semana=s, investimento=inv, leadsAds=la, leadsEntrada=le, leadsSaida=ls_, 
+            vendas=vt, receita=rec, captacao=captacao, ne_mc=ne_mc, wt_mc=wt_mc
+        ))
     return records
 
 def process_lives(df):
@@ -256,6 +263,7 @@ def process_lives(df):
         if not semana or not tipo or not label or tipo == "NAN": continue
         ga = str(get_val(row, "Grupo Ativo")).strip().upper()
         
+        # Mantém a métrica individual do vídeo na aba de Lives
         novos_espectadores = safe_float(get_val(row, ["NE", "Novos Espectadores", "Espectadores Novos", "Novos"]))
         watchtime = safe_float(get_val(row, ["Watchtime", "Watch time", "Tempo"]))
         
@@ -344,8 +352,6 @@ for s in active_weeks:
     st_ = calc_stats(all_g)
     tc = sum(l["cliquesTotal"] for l in wl) 
     tv = sum(l["vendas"] for l in wl)
-    tne = sum(l["novos"] for l in wl) 
-    twt = sum(l["watchtime"] for l in wl) 
     
     m = sem_map.get(s, {})
     inv = m.get("investimento", 0)
@@ -353,10 +359,15 @@ for s in active_weeks:
     le = m.get("leadsEntrada", 0)
     ls_ = m.get("leadsSaida", 0)
     
+    # --- PUXANDO AS MÉTRICAS OFICIAIS DO MICROCICLO DA ABA SEMANAL ---
+    tne = m.get("ne_mc", 0)
+    twt = m.get("wt_mc", 0)
+    
     cpl = inv / la if la > 0 else 0
     txE = (le / la) * 100 if la > 0 else 0
     txS = (ls_ / le) * 100 if le > 0 else 0 
     
+    # O CPNE agora é calculado sobre o total oficial do MC (NE-MC)
     cpne = inv / tne if tne > 0 else 0 
     captacao = m.get("captacao", "")
 
@@ -392,6 +403,8 @@ total_cliques_all = sum(w["tc"] for w in weeks_data)
 total_pico_all = sum(w["pico"] for w in weeks_data)
 tv_all = sum(w["vt"] for w in weeks_data)
 total_novos_all = sum(w["tne"] for w in weeks_data)
+
+# O CPNE Global também reflete a soma oficial do NE-MC
 cpne_global = ti / total_novos_all if total_novos_all > 0 else 0
 
 # ── CABEÇALHO PRINCIPAL E BOTÃO DE ATUALIZAR ────────────
@@ -443,7 +456,7 @@ if st.session_state.sel_week is None:
         ("Investimento", fmtR(ti), "icon-red", "fa-solid fa-money-bill-wave"),
         ("Leads Ads", fmt(tla), "icon-blue", "fa-solid fa-bullseye"),
         ("CPL", fmtR(ti / tla) if tla > 0 else "–", "icon-orange", "fa-solid fa-coins"),
-        ("Novos Espect.", fmt(total_novos_all), "icon-purple", "fa-solid fa-user-plus"),
+        ("Novos Espect. (MC)", fmt(total_novos_all), "icon-purple", "fa-solid fa-user-plus"),
         ("CPNE", fmtR(cpne_global), "icon-orange", "fa-solid fa-tags"),
         ("Vendas", fmt(tv_all), "icon-pink", "fa-solid fa-ticket-alt"),
     ]
@@ -517,7 +530,7 @@ if st.session_state.sel_week is None:
             st.markdown(f'<div style="background:#fff1f7;border-radius:6px;height:32px;display:flex;align-items:center;justify-content:center;border:1px solid #fce7f3"><span style="font-size:13px;font-weight:700;color:#e91e63">MC {w["sn"]}</span></div>', unsafe_allow_html=True)
         with c2:
             cap_resumo = f"Captação: {w['captacao']}  |  " if w['captacao'] else ""
-            label = f"{w['lives_label']}  |  {cap_resumo}Watchtime: {fmt_float(w['twt'])}  |  NE: {fmt(w['tne'])}  |  CPNE: {fmtR(w['cpne'])}  |  Vendas: {fmt(w['vt'])}"
+            label = f"{w['lives_label']}  |  {cap_resumo}Watchtime (MC): {fmt_float(w['twt'])}  |  NE (MC): {fmt(w['tne'])}  |  CPNE: {fmtR(w['cpne'])}  |  Vendas: {fmt(w['vt'])}"
             if st.button(label, key=f"week_list_{w['sn']}", use_container_width=True, type="secondary"):
                 st.session_state.sel_week = w["sn"]
                 st.rerun()
@@ -548,9 +561,9 @@ else:
         ("Investimento", fmtR(m.get("investimento", 0)), "icon-red", "fa-solid fa-money-bill-wave"),
         ("Leads Ads", fmt(m.get("leadsAds", 0)), "icon-blue", "fa-solid fa-bullseye"),
         ("CPL", fmtR(w["cpl"]) if w["la"] > 0 else "–", "icon-orange", "fa-solid fa-coins"),
-        ("Novos Espect. (NE)", fmt(w["tne"]), "icon-purple", "fa-solid fa-user-plus"),
+        ("Novos Espect. (MC)", fmt(w["tne"]), "icon-purple", "fa-solid fa-user-plus"),
         ("CPNE", fmtR(w["cpne"]), "icon-orange", "fa-solid fa-tags"),
-        ("Watchtime", fmt_float(w["twt"]), "icon-indigo", "fa-solid fa-clock"),
+        ("Watchtime (MC)", fmt_float(w["twt"]), "icon-indigo", "fa-solid fa-clock"),
     ]
     for col, (l, v, ic, iname) in zip(cols1, kpis_s1):
         with col: st.markdown(kpi_new_html(l, v, ic, iname), unsafe_allow_html=True)
@@ -626,7 +639,7 @@ else:
 
     for i, ev in enumerate(w["evs"]):
         tipo_badge_color = "#3b82f6" if ev["tipo"] == "LVP" else "#f59e0b"
-        expander_title = f"{ev['label']} ({ev['data']}) | NE: {fmt(ev['novos'])} | Watchtime: {fmt_float(ev['watchtime'])} | Vendas: {fmt(ev['vendas'])}"
+        expander_title = f"{ev['label']} ({ev['data']}) | NE (Live): {fmt(ev['novos'])} | WT (Live): {fmt_float(ev['watchtime'])} | Vendas: {fmt(ev['vendas'])}"
         
         with st.expander(expander_title, expanded=(i==0)):
             st.markdown(f'''
