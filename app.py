@@ -4,11 +4,12 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import requests
 from io import StringIO
+import time
 
 # ── CONFIGURAÇÃO DA PÁGINA ──────────────────────────────
 st.set_page_config(
-    page_title="Dashboard Lives Semanais — Grupo Rugido",
-    page_icon="📊",
+    page_title="Dashboard Lançamento Março 26",
+    page_icon="🚀",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -195,20 +196,20 @@ def parse_csv_from_url(url):
     except: return None
 
 def load_data(sheet_id):
-    base = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
+    cb = int(time.time())
+    base = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&_cb={cb}"
     sem_df = parse_csv_from_url(f"{base}&sheet=Semanal")
-    if sem_df is None: return None, None
     liv_df = parse_csv_from_url(f"{base}&sheet=Lives+e+Grupos")
     return sem_df, liv_df
 
 def col_match(df_cols, target):
-    target_lower = target.lower().strip()
+    target_lower = str(target).lower().strip()
     for c in df_cols:
-        if c.lower().strip() == target_lower: return c
+        if str(c).lower().strip() == target_lower: return c
     for c in df_cols:
-        cl = c.lower().strip()
-        simple_t = target_lower.replace("í","i").replace("ã","a").replace("ç","c").replace("é","e").replace("ú","u")
-        simple_c = cl.replace("í","i").replace("ã","a").replace("ç","c").replace("é","e").replace("ú","u")
+        cl = str(c).lower().strip()
+        simple_t = target_lower.replace("í","i").replace("ã","a").replace("ç","c").replace("é","e").replace("ú","u").replace("-", "").replace(" ", "")
+        simple_c = cl.replace("í","i").replace("ã","a").replace("ç","c").replace("é","e").replace("ú","u").replace("-", "").replace(" ", "")
         if simple_t == simple_c: return c
     return None
 
@@ -243,7 +244,6 @@ def process_semanal(df):
         captacao = str(get_val(row, ["Captação", "Captacao", "Capitação"])).strip()
         if str(captacao) in ["0", "0.0", "nan", "None"]: captacao = ""
 
-        # --- NOVAS COLUNAS DO MICROCICLO COMPLETO ---
         ne_mc = safe_float(get_val(row, ["NE-MC", "NEMC", "NE MC", "Novos Espectadores"]))
         wt_mc = safe_float(get_val(row, ["WT-MC", "WTMC", "WT MC", "Watchtime"]))
         
@@ -263,7 +263,6 @@ def process_lives(df):
         if not semana or not tipo or not label or tipo == "NAN": continue
         ga = str(get_val(row, "Grupo Ativo")).strip().upper()
         
-        # Mantém a métrica individual do vídeo na aba de Lives
         novos_espectadores = safe_float(get_val(row, ["NE", "Novos Espectadores", "Espectadores Novos", "Novos"]))
         watchtime = safe_float(get_val(row, ["Watchtime", "Watch time", "Tempo"]))
         
@@ -306,6 +305,75 @@ def calc_stats(grupos):
         ga=at[0]["nome"] if at else "-"
     )
 
+# ── DADOS DO HISTÓRICO (PLANILHA DE MÉTRICAS DOS MICROCICLOS) ──
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_past_launches():
+    url = "https://docs.google.com/spreadsheets/d/1JO5nWkX7NB58tYFDmATL2bO13bjDni62xXdHHRRlDlM/gviz/tq?tqx=out:csv&sheet=ANÁLISE"
+    try:
+        r = requests.get(url, timeout=15)
+        r.raise_for_status()
+        df = pd.read_csv(StringIO(r.text))
+    except:
+        return {}
+
+    launches_order = [
+        "Nov 23", "Jan 24", "Mar 24", "Mai 24", "Jul 24", "Set 24", 
+        "Nov 24", "Jan 25", "Mar 25", "Mai 25", "Jul 25", "Set 25", "Out 25"
+    ]
+    
+    past_data = {}
+    launch_idx = -1
+    
+    for _, row in df.iterrows():
+        dt_inicio = str(row.get('DATA INICIO T', '')).strip().upper()
+        
+        # Identifica a virada de um novo lançamento verificando "S1" no nome
+        if dt_inicio.startswith('(S1)') or dt_inicio == 'S1':
+            launch_idx += 1
+            if launch_idx < len(launches_order):
+                past_data[launches_order[launch_idx]] = []
+                
+        if launch_idx >= 0 and launch_idx < len(launches_order):
+            inv = safe_float(get_val(row, 'Investimento (total)'))
+            leads = safe_float(get_val(row, ['leads lvp', 'Leads Totais', 'Leads LVP (BANCO)']))
+            ne = safe_float(get_val(row, ['nE', 'Novos Espectadores']))
+            wt = safe_float(get_val(row, 'Watchtime'))
+            
+            # Pula linhas zeradas para não sujar o painel com MC fantasma
+            if inv == 0 and leads == 0 and ne == 0:
+                continue
+                
+            mc_num = len(past_data[launches_order[launch_idx]]) + 1
+            past_data[launches_order[launch_idx]].append({
+                'mc': mc_num,
+                'investimento': inv,
+                'leads': leads,
+                'ne': ne,
+                'wt': wt,
+                'cpl': inv / leads if leads > 0 else 0,
+                'cpne': inv / ne if ne > 0 else 0,
+                'cpwt': inv / wt if wt > 0 else 0
+            })
+            
+    return past_data
+
+def aggregate_launch(mc_list):
+    if not mc_list: return {'investimento':0, 'leads':0, 'ne':0, 'wt':0, 'cpl':0, 'cpne':0, 'cpwt':0}
+    t_inv = sum(x['investimento'] for x in mc_list)
+    t_leads = sum(x['leads'] for x in mc_list)
+    t_ne = sum(x['ne'] for x in mc_list)
+    t_wt = sum(x['wt'] for x in mc_list)
+    return {
+        'mc': 'Geral',
+        'investimento': t_inv,
+        'leads': t_leads,
+        'ne': t_ne,
+        'wt': t_wt,
+        'cpl': t_inv / t_leads if t_leads > 0 else 0,
+        'cpne': t_inv / t_ne if t_ne > 0 else 0,
+        'cpwt': t_inv / t_wt if t_wt > 0 else 0
+    }
+
 # ── PLOTLY LAYOUT ───────────────────────────────────────
 PLOT_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
@@ -341,7 +409,7 @@ if semanal is None:
     st.error("Erro ao conectar com a planilha. Verifique as permissões de acesso do link.")
     st.stop()
 
-# ── CÁLCULOS GERAIS ─────────────────────────────────────
+# ── CÁLCULOS GERAIS DO LANÇAMENTO ATUAL ──────────────────
 sem_map = {s["semana"]: s for s in semanal}
 active_weeks = sorted([s for s, data in sem_map.items() if data.get("investimento", 0) > 0])
 
@@ -359,7 +427,6 @@ for s in active_weeks:
     le = m.get("leadsEntrada", 0)
     ls_ = m.get("leadsSaida", 0)
     
-    # --- PUXANDO AS MÉTRICAS OFICIAIS DO MICROCICLO DA ABA SEMANAL ---
     tne = m.get("ne_mc", 0)
     twt = m.get("wt_mc", 0)
     
@@ -367,7 +434,6 @@ for s in active_weeks:
     txE = (le / la) * 100 if la > 0 else 0
     txS = (ls_ / le) * 100 if le > 0 else 0 
     
-    # O CPNE agora é calculado sobre o total oficial do MC (NE-MC)
     cpne = inv / tne if tne > 0 else 0 
     captacao = m.get("captacao", "")
 
@@ -403,19 +469,18 @@ total_cliques_all = sum(w["tc"] for w in weeks_data)
 total_pico_all = sum(w["pico"] for w in weeks_data)
 tv_all = sum(w["vt"] for w in weeks_data)
 total_novos_all = sum(w["tne"] for w in weeks_data)
-
-# O CPNE Global também reflete a soma oficial do NE-MC
 cpne_global = ti / total_novos_all if total_novos_all > 0 else 0
+
 
 # ── CABEÇALHO PRINCIPAL E BOTÃO DE ATUALIZAR ────────────
 h_col1, h_col2 = st.columns([5, 1])
 with h_col1:
     st.markdown("""
     <div class="brand">
-        <span class="brand-text">Grupo <span class="brand-highlight">Rugido</span></span>
+        <span class="brand-text">Lançamento <span class="brand-highlight">Março 26</span></span>
     </div>
     """, unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">🟢 Sincronizado via Google Sheets</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">🟢 Grupo Rugido · Gestão de Audiência</div>', unsafe_allow_html=True)
 
 with h_col2:
     st.markdown("<div style='margin-bottom: 5px'></div>", unsafe_allow_html=True)
@@ -425,234 +490,329 @@ with h_col2:
 
 st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
 
-# ── NAVEGAÇÃO SUPERIOR ──────────────────────────────────
-num_weeks = len(active_weeks)
-spacer_width = max(1, 10 - (1.2 + num_weeks * 0.8)) 
-nav_cols = st.columns([1.2] + [0.8] * num_weeks + [spacer_width])
 
-with nav_cols[0]:
-    btn_type = "primary" if st.session_state.sel_week is None else "secondary"
-    if st.button("📊 Geral", use_container_width=True, type=btn_type):
-        st.session_state.sel_week = None
-        st.rerun()
+# ── NAVEGAÇÃO ESTRUTURAL DAS ABAS MAIORES ───────────────
+tab_atual, tab_anteriores, tab_comp = st.tabs(["🚀 Março 26 (Atual)", "⏪ Lançamentos Anteriores", "⚖️ Comparativo de Microciclos"])
 
-for i, s in enumerate(active_weeks):
-    with nav_cols[i + 1]:
-        btn_type = "primary" if st.session_state.sel_week == s else "secondary"
-        if st.button(f"MC {s}", use_container_width=True, type=btn_type):
-            st.session_state.sel_week = s
+
+# ════════════════════════════════════════════════════════
+# ABA 1: LANÇAMENTO ATUAL (MARÇO 26)
+# ════════════════════════════════════════════════════════
+with tab_atual:
+    num_weeks = len(active_weeks)
+    spacer_width = max(1, 10 - (1.2 + num_weeks * 0.8)) 
+    nav_cols = st.columns([1.2] + [0.8] * num_weeks + [spacer_width])
+
+    with nav_cols[0]:
+        btn_type = "primary" if st.session_state.sel_week is None else "secondary"
+        if st.button("📊 Geral", use_container_width=True, type=btn_type):
+            st.session_state.sel_week = None
             st.rerun()
 
-st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
-
-# ════════════════════════════════════════════════════════
-# TELA: VISÃO GERAL
-# ════════════════════════════════════════════════════════
-if st.session_state.sel_week is None:
-    st.markdown('<div class="week-header"><div class="week-title-text"><i class="fa-solid fa-chart-line" style="color:var(--primary-color); margin-right:8px"></i> Visão Geral do Lançamento</div><div class="week-subtitle">Acumulado de todos os microciclos</div></div>', unsafe_allow_html=True)
-
-    cols = st.columns(6)
-    kpis_overview = [
-        ("Investimento", fmtR(ti), "icon-red", "fa-solid fa-money-bill-wave"),
-        ("Leads Ads", fmt(tla), "icon-blue", "fa-solid fa-bullseye"),
-        ("CPL", fmtR(ti / tla) if tla > 0 else "–", "icon-orange", "fa-solid fa-coins"),
-        ("Novos Espect. (MC)", fmt(total_novos_all), "icon-purple", "fa-solid fa-user-plus"),
-        ("CPNE", fmtR(cpne_global), "icon-orange", "fa-solid fa-tags"),
-        ("Vendas", fmt(tv_all), "icon-pink", "fa-solid fa-ticket-alt"),
-    ]
-    for col, (label, value, icon_cls, icon_name) in zip(cols, kpis_overview):
-        with col: st.markdown(kpi_new_html(label, value, icon_cls, icon_name), unsafe_allow_html=True)
-    
-    st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
-
-    # --- PRIMEIRA LINHA DE GRÁFICOS: COM HOVER FORMATADO EM R$ ---
-    col_f, col_g = st.columns([1, 1])
-    with col_f:
-        st.markdown('<h4>Evolução de Custos (CPL vs CPNE)</h4>', unsafe_allow_html=True)
-        fig1 = go.Figure()
-        
-        # Adicionando o CPL formatado no Hover (text)
-        fig1.add_trace(go.Scatter(
-            x=[f"MC {w['sn']}" for w in weeks_data], 
-            y=[w["cpl"] for w in weeks_data], 
-            mode='lines+markers', 
-            name="CPL", 
-            text=[fmtR(w["cpl"]) for w in weeks_data],
-            hovertemplate="%{text}<extra></extra>", # Isso força o hover a mostrar o R$ bonitinho
-            line=dict(color="#f59e0b", width=3), 
-            marker=dict(size=8)
-        ))
-        
-        # Adicionando o CPNE formatado no Hover (text)
-        fig1.add_trace(go.Scatter(
-            x=[f"MC {w['sn']}" for w in weeks_data], 
-            y=[w["cpne"] for w in weeks_data], 
-            mode='lines+markers', 
-            name="CPNE", 
-            text=[fmtR(w["cpne"]) for w in weeks_data],
-            hovertemplate="%{text}<extra></extra>", # Isso força o hover a mostrar o R$ bonitinho
-            line=dict(color="#8b5cf6", width=3), 
-            marker=dict(size=8)
-        ))
-        
-        fig1.update_layout(**PLOT_LAYOUT, height=280, hovermode="x unified")
-        st.plotly_chart(fig1, use_container_width=True, config=dict(displayModeBar=False))
-    
-    with col_g:
-        st.markdown('<h4>CTR do Grupo Principal: LVP vs LVG</h4>', unsafe_allow_html=True)
-        fig2 = go.Figure()
-        fig2.add_trace(go.Bar(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["ctr_lvp"] for w in weeks_data], name="LVP (Prospecção)", marker_color="#3b82f6", text=[pct(w["ctr_lvp"]) if w["ctr_lvp"] > 0 else "" for w in weeks_data], textposition="auto"))
-        fig2.add_trace(go.Bar(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["ctr_lvg"] for w in weeks_data], name="LVG (Conteúdo)", marker_color="#f59e0b", text=[pct(w["ctr_lvg"]) if w["ctr_lvg"] > 0 else "" for w in weeks_data], textposition="auto"))
-        fig2.update_layout(**PLOT_LAYOUT, barmode="group", height=280) 
-        fig2.update_yaxes(ticksuffix="%")
-        st.plotly_chart(fig2, use_container_width=True, config=dict(displayModeBar=False))
-
-    st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
-
-    col_h, col_i = st.columns([1, 1])
-    with col_h:
-        st.markdown('<h4><i class="fa-solid fa-clock" style="color:var(--indigo-color); margin-right:6px"></i> Watchtime por Microciclo</h4>', unsafe_allow_html=True)
-        fig3 = go.Figure(go.Bar(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["twt"] for w in weeks_data], marker_color="#4f46e5", text=[fmt_float(w["twt"]) if w["twt"] > 0 else "" for w in weeks_data], textposition="auto"))
-        fig3.update_layout(**PLOT_LAYOUT, height=250)
-        st.plotly_chart(fig3, use_container_width=True, config=dict(displayModeBar=False))
-        
-    with col_i:
-        st.markdown('<h4><i class="fa-solid fa-user-plus" style="color:var(--purple-color); margin-right:6px"></i> Novos Espectadores (NE) por Microciclo</h4>', unsafe_allow_html=True)
-        fig4 = go.Figure(go.Bar(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["tne"] for w in weeks_data], marker_color="#8b5cf6", text=[fmt(w["tne"]) if w["tne"] > 0 else "" for w in weeks_data], textposition="auto"))
-        fig4.update_layout(**PLOT_LAYOUT, height=250)
-        st.plotly_chart(fig4, use_container_width=True, config=dict(displayModeBar=False))
-
-
-    st.markdown('<h4>Resumo</h4>', unsafe_allow_html=True)
-    for w in weeks_data:
-        c1, c2 = st.columns([1, 15])
-        with c1:
-            st.markdown(f'<div style="background:#fff1f7;border-radius:6px;height:32px;display:flex;align-items:center;justify-content:center;border:1px solid #fce7f3"><span style="font-size:13px;font-weight:700;color:#e91e63">MC {w["sn"]}</span></div>', unsafe_allow_html=True)
-        with c2:
-            cap_resumo = f"Captação: {w['captacao']}  |  " if w['captacao'] else ""
-            label = f"{w['lives_label']}  |  {cap_resumo}Watchtime (MC): {fmt_float(w['twt'])}  |  NE (MC): {fmt(w['tne'])}  |  CPNE: {fmtR(w['cpne'])}  |  Vendas: {fmt(w['vt'])}"
-            if st.button(label, key=f"week_list_{w['sn']}", use_container_width=True, type="secondary"):
-                st.session_state.sel_week = w["sn"]
+    for i, s in enumerate(active_weeks):
+        with nav_cols[i + 1]:
+            btn_type = "primary" if st.session_state.sel_week == s else "secondary"
+            if st.button(f"MC {s}", use_container_width=True, type=btn_type):
+                st.session_state.sel_week = s
                 st.rerun()
 
-# ════════════════════════════════════════════════════════
-# TELA: DETALHE DO MICROCICLO
-# ════════════════════════════════════════════════════════
-else:
-    sw = st.session_state.sel_week
-    w = next((w for w in weeks_data if w["sn"] == sw), None)
-    if w is None: st.error("Microciclo não encontrado"); st.stop()
-
-    date_badge = f"<span style='font-size:0.9rem; font-weight:500; color:var(--text-secondary); margin-left: 12px; border-left: 2px solid var(--border-color); padding-left: 12px;'><i class='fa-regular fa-calendar'></i> {w['captacao']}</span>" if w['captacao'] else ""
-
-    st.markdown(f'''
-    <div class="week-header">
-        <div class="week-title-text" style="display:flex; align-items:center;">
-            <i class="fa-solid fa-bullseye" style="color:var(--primary-color); margin-right:8px"></i> Microciclo {sw} {date_badge}
-        </div>
-        <div class="week-subtitle">{len(w['evs'])} live(s) analisada(s)</div>
-    </div>
-    ''', unsafe_allow_html=True)
-
-    m = w["m"] if isinstance(w["m"], dict) else {}
-    
-    cols1 = st.columns(6)
-    kpis_s1 = [
-        ("Investimento", fmtR(m.get("investimento", 0)), "icon-red", "fa-solid fa-money-bill-wave"),
-        ("Leads Ads", fmt(m.get("leadsAds", 0)), "icon-blue", "fa-solid fa-bullseye"),
-        ("CPL", fmtR(w["cpl"]) if w["la"] > 0 else "–", "icon-orange", "fa-solid fa-coins"),
-        ("Novos Espect. (MC)", fmt(w["tne"]), "icon-purple", "fa-solid fa-user-plus"),
-        ("CPNE", fmtR(w["cpne"]), "icon-orange", "fa-solid fa-tags"),
-        ("Watchtime (MC)", fmt_float(w["twt"]), "icon-indigo", "fa-solid fa-clock"),
-    ]
-    for col, (l, v, ic, iname) in zip(cols1, kpis_s1):
-        with col: st.markdown(kpi_new_html(l, v, ic, iname), unsafe_allow_html=True)
-    
-    st.markdown("<div style='margin-bottom: 10px'></div>", unsafe_allow_html=True)
-
-    cols2 = st.columns(6)
-    kpis_s2 = [
-        ("Leads Entrada", fmt(m.get("leadsEntrada", 0)), "icon-green", "fa-solid fa-users"),
-        ("Taxa Entrada", pct(w["txE"]) if w["la"] > 0 else "–", "icon-green", "fa-solid fa-percentage"),
-        ("Taxa de Saída", pct(w["txS"]) if w["le"] > 0 else "–", "icon-orange", "fa-solid fa-arrow-trend-down"),
-        ("Leads Saíram", fmt(w["ls"]), "icon-red", "fa-solid fa-user-minus"),
-        ("Total Cliques", fmt(w["tc"]), "icon-blue", "fa-solid fa-pointer"),
-        ("Vendas do MC", fmt(w["vt"]), "icon-pink", "fa-solid fa-ticket-alt"),
-    ]
-    for col, (l, v, ic, iname) in zip(cols2, kpis_s2):
-        with col: st.markdown(kpi_new_html(l, v, ic, iname), unsafe_allow_html=True)
-
-    st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
-
-    st.markdown('<h4>Jornada de Conversão (1ª LVP - Grupo Principal)</h4>', unsafe_allow_html=True)
-    
-    primeira_lvp = next((ev for ev in w["evs"] if ev["tipo"] == "LVP"), None)
-    
-    if primeira_lvp:
-        grupo_ativo = next((g for g in primeira_lvp["grupos"] if g["ativo"]), None)
-        leads_ativos = grupo_ativo["leads"] if grupo_ativo else 0
-        cliques_ativos = grupo_ativo["cliques"] if grupo_ativo else 0
-        pico_lvp = primeira_lvp["pico"]
-        vendas_lvp = primeira_lvp["vendas"]
-        
-        funnel_labels = ['Captação (Ads)', 'Entraram GP', 'Ficaram (Ativo)', 'Cliques (Ativo)', 'Pico (1ª LVP)', 'Vendas']
-        funnel_values = [w['la'], w['le'], leads_ativos, cliques_ativos, pico_lvp, vendas_lvp]
-    else:
-        funnel_labels = ['Captação (Ads)', 'Entraram GP', 'Ficaram GP', 'Cliques', 'Pico Máx', 'Vendas']
-        ficaram_grupo = w['le'] - w['ls']
-        funnel_values = [w['la'], w['le'], ficaram_grupo, w['tc'], w['pico'], w['vt']]
-    
-    base_val = funnel_values[0] if funnel_values[0] > 0 else max(1, max(funnel_values))
-    text_vals = [f"<b>{v:,.0f}</b><br>({(v/base_val)*100:.1f}%)" for v in funnel_values]
-
-    fig_funnel_sem = go.Figure()
-    fig_funnel_sem.add_trace(go.Scatter(
-        x=funnel_labels, 
-        y=funnel_values,
-        mode='lines+markers+text',
-        text=text_vals,
-        textposition='top center',
-        textfont=dict(size=11, color='#111827'),
-        cliponaxis=False,
-        marker=dict(size=12, color='#e91e63', line=dict(width=2, color='white')),
-        line=dict(width=4, color='#e91e63', shape='spline'), 
-        fill='tozeroy', 
-        fillcolor='rgba(233, 30, 99, 0.08)'
-    ))
-    
-    fig_funnel_sem.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter", color="#6b7280", size=11),
-        margin=dict(l=50, r=50, t=50, b=20), 
-        height=260,
-        yaxis=dict(showgrid=False, zeroline=False, visible=False, range=[0, max(funnel_values)*1.4]), 
-        xaxis=dict(showgrid=False, zeroline=False, range=[-0.3, 5.3]) 
-    )
-    st.plotly_chart(fig_funnel_sem, use_container_width=True, config=dict(displayModeBar=False))
-    
     st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
 
-    st.markdown(f'<div class="metric-bar-new"><div class="mb-item"><div class="mb-label">Cliques Total</div><div class="mb-value">{fmt(w["tc"])}</div></div><div class="mb-item"><div class="mb-label">Pico Máx</div><div class="mb-value" style="color:var(--primary-color)">{fmt(w["pico"])}</div></div><div class="mb-item"><div class="mb-label">CTR Ativo Médio</div><div class="mb-value" style="color:var(--success-color)">{pct(w["aCTR"])}</div></div><div class="mb-item"><div class="mb-label">CTR Passados Médio</div><div class="mb-value" style="color:var(--warning-color)">{pct(w["pCTR"]) if w["pCTR"] > 0 else "–"}</div></div><div class="mb-item"><div class="mb-label">Grupo Ativo</div><div class="mb-value" style="color:var(--primary-color)">{w["ga"]}</div></div></div>', unsafe_allow_html=True)
+    # --- TELA VISÃO GERAL ---
+    if st.session_state.sel_week is None:
+        st.markdown('<div class="week-header"><div class="week-title-text"><i class="fa-solid fa-chart-line" style="color:var(--primary-color); margin-right:8px"></i> Visão Geral do Lançamento</div><div class="week-subtitle">Acumulado de todos os microciclos</div></div>', unsafe_allow_html=True)
 
-    st.markdown("<h4>Detalhamento das Lives</h4>", unsafe_allow_html=True)
-
-    for i, ev in enumerate(w["evs"]):
-        tipo_badge_color = "#3b82f6" if ev["tipo"] == "LVP" else "#f59e0b"
-        expander_title = f"{ev['label']} ({ev['data']}) | NE (Live): {fmt(ev['novos'])} | WT (Live): {fmt_float(ev['watchtime'])} | Vendas: {fmt(ev['vendas'])}"
+        cols = st.columns(6)
+        kpis_overview = [
+            ("Investimento", fmtR(ti), "icon-red", "fa-solid fa-money-bill-wave"),
+            ("Leads Ads", fmt(tla), "icon-blue", "fa-solid fa-bullseye"),
+            ("CPL", fmtR(ti / tla) if tla > 0 else "–", "icon-orange", "fa-solid fa-coins"),
+            ("Novos Espect. (MC)", fmt(total_novos_all), "icon-purple", "fa-solid fa-user-plus"),
+            ("CPNE", fmtR(cpne_global), "icon-orange", "fa-solid fa-tags"),
+            ("Vendas", fmt(tv_all), "icon-pink", "fa-solid fa-ticket-alt"),
+        ]
+        for col, (label, value, icon_cls, icon_name) in zip(cols, kpis_overview):
+            with col: st.markdown(kpi_new_html(label, value, icon_cls, icon_name), unsafe_allow_html=True)
         
-        with st.expander(expander_title, expanded=(i==0)):
-            st.markdown(f'''
-            <div class="live-summary-metrics">
-                <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Tipo</div><div style="font-weight:800;color:{tipo_badge_color}">{ev["tipo"]}</div></div>
-                <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Cliques</div><div style="font-weight:800">{fmt(ev["cliquesTotal"])}</div></div>
-                <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Pico</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["pico"])}</div></div>
-                <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Watchtime</div><div style="font-weight:800;color:var(--indigo-color)">{fmt_float(ev["watchtime"])}</div></div>
-                <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">NE (Novos)</div><div style="font-weight:800;color:var(--purple-color)">{fmt(ev["novos"])}</div></div>
-                <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Vendas</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["vendas"])}</div></div>
+        st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
+
+        col_f, col_g = st.columns([1, 1])
+        with col_f:
+            st.markdown('<h4>Evolução de Custos (CPL vs CPNE)</h4>', unsafe_allow_html=True)
+            fig1 = go.Figure()
+            fig1.add_trace(go.Scatter(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["cpl"] for w in weeks_data], mode='lines+markers', name="CPL", text=[fmtR(w["cpl"]) for w in weeks_data], hovertemplate="%{text}<extra></extra>", line=dict(color="#f59e0b", width=3), marker=dict(size=8)))
+            fig1.add_trace(go.Scatter(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["cpne"] for w in weeks_data], mode='lines+markers', name="CPNE", text=[fmtR(w["cpne"]) for w in weeks_data], hovertemplate="%{text}<extra></extra>", line=dict(color="#8b5cf6", width=3), marker=dict(size=8)))
+            fig1.update_layout(**PLOT_LAYOUT, height=280, hovermode="x unified")
+            st.plotly_chart(fig1, use_container_width=True, config=dict(displayModeBar=False))
+        
+        with col_g:
+            st.markdown('<h4>CTR do Grupo Principal: LVP vs LVG</h4>', unsafe_allow_html=True)
+            fig2 = go.Figure()
+            fig2.add_trace(go.Bar(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["ctr_lvp"] for w in weeks_data], name="LVP (Prospecção)", marker_color="#3b82f6", text=[pct(w["ctr_lvp"]) if w["ctr_lvp"] > 0 else "" for w in weeks_data], textposition="auto"))
+            fig2.add_trace(go.Bar(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["ctr_lvg"] for w in weeks_data], name="LVG (Conteúdo)", marker_color="#f59e0b", text=[pct(w["ctr_lvg"]) if w["ctr_lvg"] > 0 else "" for w in weeks_data], textposition="auto"))
+            fig2.update_layout(**PLOT_LAYOUT, barmode="group", height=280) 
+            fig2.update_yaxes(ticksuffix="%")
+            st.plotly_chart(fig2, use_container_width=True, config=dict(displayModeBar=False))
+
+        st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
+
+        col_h, col_i = st.columns([1, 1])
+        with col_h:
+            st.markdown('<h4><i class="fa-solid fa-clock" style="color:var(--indigo-color); margin-right:6px"></i> Watchtime por Microciclo</h4>', unsafe_allow_html=True)
+            fig3 = go.Figure(go.Bar(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["twt"] for w in weeks_data], marker_color="#4f46e5", text=[fmt_float(w["twt"]) if w["twt"] > 0 else "" for w in weeks_data], textposition="auto"))
+            fig3.update_layout(**PLOT_LAYOUT, height=250)
+            st.plotly_chart(fig3, use_container_width=True, config=dict(displayModeBar=False))
+            
+        with col_i:
+            st.markdown('<h4><i class="fa-solid fa-user-plus" style="color:var(--purple-color); margin-right:6px"></i> Novos Espectadores (NE) por Microciclo</h4>', unsafe_allow_html=True)
+            fig4 = go.Figure(go.Bar(x=[f"MC {w['sn']}" for w in weeks_data], y=[w["tne"] for w in weeks_data], marker_color="#8b5cf6", text=[fmt(w["tne"]) if w["tne"] > 0 else "" for w in weeks_data], textposition="auto"))
+            fig4.update_layout(**PLOT_LAYOUT, height=250)
+            st.plotly_chart(fig4, use_container_width=True, config=dict(displayModeBar=False))
+
+        st.markdown('<h4>Resumo</h4>', unsafe_allow_html=True)
+        for w in weeks_data:
+            c1, c2 = st.columns([1, 15])
+            with c1:
+                st.markdown(f'<div style="background:#fff1f7;border-radius:6px;height:32px;display:flex;align-items:center;justify-content:center;border:1px solid #fce7f3"><span style="font-size:13px;font-weight:700;color:#e91e63">MC {w["sn"]}</span></div>', unsafe_allow_html=True)
+            with c2:
+                cap_resumo = f"Captação: {w['captacao']}  |  " if w['captacao'] else ""
+                label = f"{w['lives_label']}  |  {cap_resumo}Watchtime (MC): {fmt_float(w['twt'])}  |  NE (MC): {fmt(w['tne'])}  |  CPNE: {fmtR(w['cpne'])}  |  Vendas: {fmt(w['vt'])}"
+                if st.button(label, key=f"week_list_{w['sn']}", use_container_width=True, type="secondary"):
+                    st.session_state.sel_week = w["sn"]
+                    st.rerun()
+
+    # --- TELA DETALHE DO MICROCICLO ---
+    else:
+        sw = st.session_state.sel_week
+        w = next((w for w in weeks_data if w["sn"] == sw), None)
+        if w is None: st.error("Microciclo não encontrado"); st.stop()
+
+        date_badge = f"<span style='font-size:0.9rem; font-weight:500; color:var(--text-secondary); margin-left: 12px; border-left: 2px solid var(--border-color); padding-left: 12px;'><i class='fa-regular fa-calendar'></i> {w['captacao']}</span>" if w['captacao'] else ""
+
+        st.markdown(f'''
+        <div class="week-header">
+            <div class="week-title-text" style="display:flex; align-items:center;">
+                <i class="fa-solid fa-bullseye" style="color:var(--primary-color); margin-right:8px"></i> Microciclo {sw} {date_badge}
             </div>
-            ''', unsafe_allow_html=True)
-            st.markdown(generate_groups_table(ev["grupos"]), unsafe_allow_html=True)
+            <div class="week-subtitle">{len(w['evs'])} live(s) analisada(s)</div>
+        </div>
+        ''', unsafe_allow_html=True)
+
+        m = w["m"] if isinstance(w["m"], dict) else {}
+        
+        cols1 = st.columns(6)
+        kpis_s1 = [
+            ("Investimento", fmtR(m.get("investimento", 0)), "icon-red", "fa-solid fa-money-bill-wave"),
+            ("Leads Ads", fmt(m.get("leadsAds", 0)), "icon-blue", "fa-solid fa-bullseye"),
+            ("CPL", fmtR(w["cpl"]) if w["la"] > 0 else "–", "icon-orange", "fa-solid fa-coins"),
+            ("Novos Espect. (MC)", fmt(w["tne"]), "icon-purple", "fa-solid fa-user-plus"),
+            ("CPNE", fmtR(w["cpne"]), "icon-orange", "fa-solid fa-tags"),
+            ("Watchtime (MC)", fmt_float(w["twt"]), "icon-indigo", "fa-solid fa-clock"),
+        ]
+        for col, (l, v, ic, iname) in zip(cols1, kpis_s1):
+            with col: st.markdown(kpi_new_html(l, v, ic, iname), unsafe_allow_html=True)
+        
+        st.markdown("<div style='margin-bottom: 10px'></div>", unsafe_allow_html=True)
+
+        cols2 = st.columns(6)
+        kpis_s2 = [
+            ("Leads Entrada", fmt(m.get("leadsEntrada", 0)), "icon-green", "fa-solid fa-users"),
+            ("Taxa Entrada", pct(w["txE"]) if w["la"] > 0 else "–", "icon-green", "fa-solid fa-percentage"),
+            ("Taxa de Saída", pct(w["txS"]) if w["le"] > 0 else "–", "icon-orange", "fa-solid fa-arrow-trend-down"),
+            ("Leads Saíram", fmt(w["ls"]), "icon-red", "fa-solid fa-user-minus"),
+            ("Total Cliques", fmt(w["tc"]), "icon-blue", "fa-solid fa-pointer"),
+            ("Vendas do MC", fmt(w["vt"]), "icon-pink", "fa-solid fa-ticket-alt"),
+        ]
+        for col, (l, v, ic, iname) in zip(cols2, kpis_s2):
+            with col: st.markdown(kpi_new_html(l, v, ic, iname), unsafe_allow_html=True)
+
+        st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
+
+        st.markdown('<h4>Jornada de Conversão (1ª LVP - Grupo Principal)</h4>', unsafe_allow_html=True)
+        
+        primeira_lvp = next((ev for ev in w["evs"] if ev["tipo"] == "LVP"), None)
+        
+        if primeira_lvp:
+            grupo_ativo = next((g for g in primeira_lvp["grupos"] if g["ativo"]), None)
+            leads_ativos = grupo_ativo["leads"] if grupo_ativo else 0
+            cliques_ativos = grupo_ativo["cliques"] if grupo_ativo else 0
+            pico_lvp = primeira_lvp["pico"]
+            vendas_lvp = primeira_lvp["vendas"]
+            
+            funnel_labels = ['Captação (Ads)', 'Entraram GP', 'Ficaram (Ativo)', 'Cliques (Ativo)', 'Pico (1ª LVP)', 'Vendas']
+            funnel_values = [w['la'], w['le'], leads_ativos, cliques_ativos, pico_lvp, vendas_lvp]
+        else:
+            funnel_labels = ['Captação (Ads)', 'Entraram GP', 'Ficaram GP', 'Cliques', 'Pico Máx', 'Vendas']
+            ficaram_grupo = w['le'] - w['ls']
+            funnel_values = [w['la'], w['le'], ficaram_grupo, w['tc'], w['pico'], w['vt']]
+        
+        base_val = funnel_values[0] if funnel_values[0] > 0 else max(1, max(funnel_values))
+        text_vals = [f"<b>{v:,.0f}</b><br>({(v/base_val)*100:.1f}%)" for v in funnel_values]
+
+        fig_funnel_sem = go.Figure()
+        fig_funnel_sem.add_trace(go.Scatter(
+            x=funnel_labels, 
+            y=funnel_values,
+            mode='lines+markers+text',
+            text=text_vals,
+            textposition='top center',
+            textfont=dict(size=11, color='#111827'),
+            cliponaxis=False,
+            marker=dict(size=12, color='#e91e63', line=dict(width=2, color='white')),
+            line=dict(width=4, color='#e91e63', shape='spline'), 
+            fill='tozeroy', 
+            fillcolor='rgba(233, 30, 99, 0.08)'
+        ))
+        
+        fig_funnel_sem.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(family="Inter", color="#6b7280", size=11),
+            margin=dict(l=50, r=50, t=50, b=20), 
+            height=260,
+            yaxis=dict(showgrid=False, zeroline=False, visible=False, range=[0, max(funnel_values)*1.4]), 
+            xaxis=dict(showgrid=False, zeroline=False, range=[-0.3, 5.3]) 
+        )
+        st.plotly_chart(fig_funnel_sem, use_container_width=True, config=dict(displayModeBar=False))
+        
+        st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
+
+        st.markdown(f'<div class="metric-bar-new"><div class="mb-item"><div class="mb-label">Cliques Total</div><div class="mb-value">{fmt(w["tc"])}</div></div><div class="mb-item"><div class="mb-label">Pico Máx</div><div class="mb-value" style="color:var(--primary-color)">{fmt(w["pico"])}</div></div><div class="mb-item"><div class="mb-label">CTR Ativo Médio</div><div class="mb-value" style="color:var(--success-color)">{pct(w["aCTR"])}</div></div><div class="mb-item"><div class="mb-label">CTR Passados Médio</div><div class="mb-value" style="color:var(--warning-color)">{pct(w["pCTR"]) if w["pCTR"] > 0 else "–"}</div></div><div class="mb-item"><div class="mb-label">Grupo Ativo</div><div class="mb-value" style="color:var(--primary-color)">{w["ga"]}</div></div></div>', unsafe_allow_html=True)
+
+        st.markdown("<h4>Detalhamento das Lives</h4>", unsafe_allow_html=True)
+
+        for i, ev in enumerate(w["evs"]):
+            tipo_badge_color = "#3b82f6" if ev["tipo"] == "LVP" else "#f59e0b"
+            expander_title = f"{ev['label']} ({ev['data']}) | NE (Live): {fmt(ev['novos'])} | WT (Live): {fmt_float(ev['watchtime'])} | Vendas: {fmt(ev['vendas'])}"
+            
+            with st.expander(expander_title, expanded=(i==0)):
+                st.markdown(f'''
+                <div class="live-summary-metrics">
+                    <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Tipo</div><div style="font-weight:800;color:{tipo_badge_color}">{ev["tipo"]}</div></div>
+                    <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Cliques</div><div style="font-weight:800">{fmt(ev["cliquesTotal"])}</div></div>
+                    <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Pico</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["pico"])}</div></div>
+                    <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Watchtime</div><div style="font-weight:800;color:var(--indigo-color)">{fmt_float(ev["watchtime"])}</div></div>
+                    <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">NE (Novos)</div><div style="font-weight:800;color:var(--purple-color)">{fmt(ev["novos"])}</div></div>
+                    <div><div style="font-size:0.65rem;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:2px">Vendas</div><div style="font-weight:800;color:var(--primary-color)">{fmt(ev["vendas"])}</div></div>
+                </div>
+                ''', unsafe_allow_html=True)
+                st.markdown(generate_groups_table(ev["grupos"]), unsafe_allow_html=True)
+
+
+# ════════════════════════════════════════════════════════
+# ABA 2: LANÇAMENTOS ANTERIORES (HISTÓRICO)
+# ════════════════════════════════════════════════════════
+with tab_anteriores:
+    st.markdown("### ⏪ Dados Históricos de Lançamentos")
+    past_data = get_past_launches()
+    
+    if past_data:
+        sel_l = st.selectbox("Escolha o Lançamento:", list(past_data.keys()))
+        
+        mcs_l = past_data[sel_l]
+        mc_options = ["Geral"] + [f"MC {m['mc']}" for m in mcs_l]
+        
+        st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
+        sel_mc_ant = st.radio("Filtro de Microciclo:", mc_options, horizontal=True)
+        st.markdown("<div style='margin-bottom: 24px'></div>", unsafe_allow_html=True)
+        
+        if sel_mc_ant == "Geral":
+            d_show = aggregate_launch(mcs_l)
+            st.markdown(f"#### Resultados Globais: {sel_l}")
+        else:
+            idx = int(sel_mc_ant.replace("MC ", "")) - 1
+            d_show = mcs_l[idx]
+            st.markdown(f"#### Resultados: {sel_l} - {sel_mc_ant}")
+            
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: st.markdown(kpi_new_html("Investimento", fmtR(d_show['investimento']), "icon-red", "fa-solid fa-money-bill-wave"), unsafe_allow_html=True)
+        with c2: st.markdown(kpi_new_html("Leads LVP", fmt(d_show['leads']), "icon-blue", "fa-solid fa-users"), unsafe_allow_html=True)
+        with c3: st.markdown(kpi_new_html("CPL", fmtR(d_show['cpl']), "icon-orange", "fa-solid fa-coins"), unsafe_allow_html=True)
+        with c4: st.markdown(kpi_new_html("Novos Espectadores", fmt(d_show['ne']), "icon-purple", "fa-solid fa-eye"), unsafe_allow_html=True)
+        
+        st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
+        c5, c6, c7, c8 = st.columns(4)
+        with c5: st.markdown(kpi_new_html("CPNE", fmtR(d_show['cpne']), "icon-orange", "fa-solid fa-tags"), unsafe_allow_html=True)
+        with c6: st.markdown(kpi_new_html("Watchtime", fmt_float(d_show['wt']), "icon-indigo", "fa-solid fa-clock"), unsafe_allow_html=True)
+        with c7: st.markdown(kpi_new_html("Custo por WT", fmtR(d_show['cpwt']), "icon-red", "fa-solid fa-chart-line"), unsafe_allow_html=True)
+        with c8: st.markdown(kpi_new_html("Status", "Fechado", "icon-green", "fa-solid fa-check"), unsafe_allow_html=True)
+    else:
+        st.info("Nenhum dado de lançamento passado encontrado ou a planilha antiga ainda está carregando.")
+
+
+# ════════════════════════════════════════════════════════
+# ABA 3: COMPARATIVO DE MICROCICLOS
+# ════════════════════════════════════════════════════════
+with tab_comp:
+    st.markdown("### ⚖️ Comparativo Lado a Lado")
+    st.caption("Filtre até 3 cenários diferentes (seja o lançamento completo ou um microciclo específico) para comparar a eficiência da operação.")
+    
+    # Prepara dicionario combinado (Histórico + Atual)
+    all_l = past_data.copy() if 'past_data' in locals() and past_data else {}
+    if weeks_data:
+        mar26 = []
+        for w in weeks_data:
+            mar26.append({
+                'mc': w['sn'],
+                'investimento': w['inv'],
+                'leads': w['la'], # Lead Ads assumido como LVP
+                'ne': w['tne'],
+                'wt': w['twt'],
+                'cpl': w['cpl'],
+                'cpne': w['cpne'],
+                'cpwt': w['inv'] / w['twt'] if w['twt'] > 0 else 0
+            })
+        all_l["Março 26 (Atual)"] = mar26
+        
+    if all_l:
+        col_c1, col_c2, col_c3 = st.columns(3)
+        cols_ui = [col_c1, col_c2, col_c3]
+        
+        l_keys = list(all_l.keys())
+        def_1 = l_keys.index("Março 26 (Atual)") if "Março 26 (Atual)" in l_keys else 0
+        def_2 = l_keys.index("Out 25") if "Out 25" in l_keys else 0
+        def_idx = [def_1, def_2, 0]
+        
+        for i in range(3):
+            with cols_ui[i]:
+                st.markdown(f"<h4 style='text-align:center; color:var(--primary-color)'>Cenário {i+1}</h4>", unsafe_allow_html=True)
+                
+                opts_l = ["Nenhum"] + l_keys
+                try: 
+                    d_idx = def_idx[i] + 1 if i < 2 else 0
+                except: 
+                    d_idx = 0
+                    
+                sel_l_comp = st.selectbox("Lançamento", opts_l, index=d_idx, key=f"comp_l_{i}")
+                
+                if sel_l_comp != "Nenhum":
+                    mcs_comp = all_l[sel_l_comp]
+                    opts_m = ["Geral"] + [f"MC {m['mc']}" for m in mcs_comp]
+                    sel_m_comp = st.selectbox("Microciclo", opts_m, key=f"comp_m_{i}")
+                    
+                    if sel_m_comp == "Geral":
+                        data_c = aggregate_launch(mcs_comp)
+                    else:
+                        m_idx = int(sel_m_comp.replace("MC ", "")) - 1
+                        data_c = mcs_comp[m_idx]
+                        
+                    st.markdown("<hr style='margin:12px 0; border-color:var(--border-color)'>", unsafe_allow_html=True)
+                    
+                    st.markdown(kpi_new_html("Investimento", fmtR(data_c['investimento']), "icon-red", "fa-solid fa-money-bill-wave"), unsafe_allow_html=True)
+                    st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
+                    st.markdown(kpi_new_html("Leads", fmt(data_c['leads']), "icon-blue", "fa-solid fa-users"), unsafe_allow_html=True)
+                    st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
+                    st.markdown(kpi_new_html("CPL", fmtR(data_c['cpl']), "icon-orange", "fa-solid fa-coins"), unsafe_allow_html=True)
+                    st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
+                    st.markdown(kpi_new_html("Novos Espectadores", fmt(data_c['ne']), "icon-purple", "fa-solid fa-eye"), unsafe_allow_html=True)
+                    st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
+                    st.markdown(kpi_new_html("CPNE", fmtR(data_c['cpne']), "icon-orange", "fa-solid fa-tags"), unsafe_allow_html=True)
+                    st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
+                    st.markdown(kpi_new_html("Watchtime", fmt_float(data_c['wt']), "icon-indigo", "fa-solid fa-clock"), unsafe_allow_html=True)
+                    st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
+                    st.markdown(kpi_new_html("Custo por WT", fmtR(data_c['cpwt']), "icon-red", "fa-solid fa-chart-line"), unsafe_allow_html=True)
+                else:
+                    st.markdown("<br><div style='text-align:center; color:var(--text-secondary); font-size:0.85rem;'>Selecione um lançamento para visualizar os dados.</div>", unsafe_allow_html=True)
 
 # ── RODAPÉ ──────────────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
