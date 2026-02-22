@@ -1,10 +1,134 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import requests
 from io import StringIO
 import time
+
+# ── DADOS HISTÓRICOS "CHUMBADOS" PARA VELOCIDADE ────────
+PAST_DATA = {
+    "Nov 23": [
+        {"mc": 1, "investimento": 635.0, "leads": 0.0, "ne": 253.0, "wt": 353.03, "cpl": 0, "cpne": 2.509, "cpwt": 1.798},
+        {"mc": 2, "investimento": 711.0, "leads": 0.0, "ne": 218.0, "wt": 203.16, "cpl": 0, "cpne": 3.261, "cpwt": 3.499},
+        {"mc": 3, "investimento": 3135.12, "leads": 0.0, "ne": 194.0, "wt": 206.2, "cpl": 0, "cpne": 16.160, "cpwt": 15.204},
+        {"mc": 4, "investimento": 3204.48, "leads": 0.0, "ne": 267.0, "wt": 218.14, "cpl": 0, "cpne": 12.001, "cpwt": 14.690},
+        {"mc": 5, "investimento": 1450.63, "leads": 0.0, "ne": 225.0, "wt": 187.16, "cpl": 0, "cpne": 6.447, "cpwt": 7.750},
+        {"mc": 6, "investimento": 6851.4, "leads": 0.0, "ne": 539.0, "wt": 881.97, "cpl": 0, "cpne": 12.711, "cpwt": 7.768},
+        {"mc": 7, "investimento": 926.3, "leads": 0.0, "ne": 161.0, "wt": 180.67, "cpl": 0, "cpne": 5.753, "cpwt": 5.127}
+    ],
+    "Jan 24": [
+        {"mc": 1, "investimento": 219.02, "leads": 0.0, "ne": 129.0, "wt": 138.51, "cpl": 0, "cpne": 1.697, "cpwt": 1.581},
+        {"mc": 5, "investimento": 558.32, "leads": 0.0, "ne": 223.0, "wt": 270.49, "cpl": 0, "cpne": 2.503, "cpwt": 2.064},
+        {"mc": 6, "investimento": 839.28, "leads": 0.0, "ne": 267.0, "wt": 333.09, "cpl": 0, "cpne": 3.143, "cpwt": 2.519},
+        {"mc": 7, "investimento": 3401.75, "leads": 0.0, "ne": 472.0, "wt": 536.48, "cpl": 0, "cpne": 7.207, "cpwt": 6.340},
+        {"mc": 8, "investimento": 9807.48, "leads": 0.0, "ne": 1457.0, "wt": 1555.1, "cpl": 0, "cpne": 6.731, "cpwt": 6.306},
+        {"mc": 9, "investimento": 9950.81, "leads": 0.0, "ne": 2111.0, "wt": 3264.38, "cpl": 0, "cpne": 4.713, "cpwt": 3.048},
+        {"mc": 10, "investimento": 3222.67, "leads": 0.0, "ne": 972.0, "wt": 1505.68, "cpl": 0, "cpne": 3.315, "cpwt": 2.140}
+    ],
+    "Mar 24": [
+        {"mc": 1, "investimento": 954.1, "leads": 71.0, "ne": 1059.0, "wt": 1477.05, "cpl": 13.438, "cpne": 0.900, "cpwt": 0.645},
+        {"mc": 2, "investimento": 5493.16, "leads": 1453.0, "ne": 1443.0, "wt": 2245.55, "cpl": 3.780, "cpne": 3.806, "cpwt": 2.446},
+        {"mc": 3, "investimento": 3155.1, "leads": 864.0, "ne": 1790.0, "wt": 2172.39, "cpl": 3.651, "cpne": 1.762, "cpwt": 1.452},
+        {"mc": 4, "investimento": 8139.58, "leads": 293.0, "ne": 1619.0, "wt": 2482.62, "cpl": 27.780, "cpne": 5.027, "cpwt": 3.278},
+        {"mc": 5, "investimento": 9456.53, "leads": 851.0, "ne": 1641.0, "wt": 2398.42, "cpl": 11.112, "cpne": 5.762, "cpwt": 3.942},
+        {"mc": 6, "investimento": 9724.64, "leads": 402.0, "ne": 2394.0, "wt": 6067.86, "cpl": 24.190, "cpne": 4.062, "cpwt": 1.602},
+        {"mc": 7, "investimento": 9137.49, "leads": 296.0, "ne": 983.0, "wt": 2050.5, "cpl": 30.869, "cpne": 9.295, "cpwt": 4.456}
+    ],
+    "Mai 24": [
+        {"mc": 1, "investimento": 1909.28, "leads": 8.0, "ne": 914.0, "wt": 1357.23, "cpl": 238.66, "cpne": 2.088, "cpwt": 1.406},
+        {"mc": 2, "investimento": 8444.77, "leads": 996.0, "ne": 1496.0, "wt": 1999.78, "cpl": 8.478, "cpne": 5.644, "cpwt": 4.222},
+        {"mc": 3, "investimento": 11305.18, "leads": 950.0, "ne": 2022.0, "wt": 2677.21, "cpl": 11.900, "cpne": 5.591, "cpwt": 4.222},
+        {"mc": 4, "investimento": 11697.5, "leads": 1120.0, "ne": 2120.0, "wt": 3186.69, "cpl": 10.444, "cpne": 5.517, "cpwt": 3.670},
+        {"mc": 5, "investimento": 15198.82, "leads": 1090.0, "ne": 2475.0, "wt": 5032.36, "cpl": 13.943, "cpne": 6.140, "cpwt": 3.020},
+        {"mc": 6, "investimento": 15510.91, "leads": 732.0, "ne": 2030.0, "wt": 4870.07, "cpl": 21.189, "cpne": 7.640, "cpwt": 3.184},
+        {"mc": 7, "investimento": 10610.9, "leads": 265.0, "ne": 2142.0, "wt": 7585.04, "cpl": 40.041, "cpne": 4.953, "cpwt": 1.398},
+        {"mc": 8, "investimento": 7182.24, "leads": 107.0, "ne": 957.0, "wt": 2483.27, "cpl": 67.123, "cpne": 7.504, "cpwt": 2.892},
+        {"mc": 9, "investimento": 4787.55, "leads": 103.0, "ne": 993.0, "wt": 2341.84, "cpl": 46.481, "cpne": 4.821, "cpwt": 2.044}
+    ],
+    "Jul 24": [
+        {"mc": 1, "investimento": 2570.77, "leads": 305.0, "ne": 1114.0, "wt": 2215.87, "cpl": 8.428, "cpne": 2.307, "cpwt": 1.160},
+        {"mc": 2, "investimento": 9585.96, "leads": 868.0, "ne": 1715.0, "wt": 3068.18, "cpl": 11.043, "cpne": 5.589, "cpwt": 3.124},
+        {"mc": 3, "investimento": 14245.39, "leads": 1289.0, "ne": 2128.0, "wt": 3581.88, "cpl": 11.051, "cpne": 6.694, "cpwt": 3.977},
+        {"mc": 4, "investimento": 12164.61, "leads": 1211.0, "ne": 1599.0, "wt": 2917.43, "cpl": 10.045, "cpne": 7.607, "cpwt": 4.169},
+        {"mc": 5, "investimento": 15011.85, "leads": 946.0, "ne": 2492.0, "wt": 4313.42, "cpl": 15.868, "cpne": 6.024, "cpwt": 3.480},
+        {"mc": 6, "investimento": 32636.93, "leads": 1581.0, "ne": 1929.0, "wt": 4436.89, "cpl": 20.643, "cpne": 16.919, "cpwt": 7.355},
+        {"mc": 7, "investimento": 28509.77, "leads": 1330.0, "ne": 2188.0, "wt": 6073.05, "cpl": 21.435, "cpne": 13.030, "cpwt": 4.694},
+        {"mc": 8, "investimento": 14433.84, "leads": 13.0, "ne": 2736.0, "wt": 9121.2, "cpl": 1110.295, "cpne": 5.275, "cpwt": 1.582},
+        {"mc": 9, "investimento": 22708.52, "leads": 84.0, "ne": 1037.0, "wt": 3560.24, "cpl": 270.339, "cpne": 21.898, "cpwt": 6.378}
+    ],
+    "Set 24": [
+        {"mc": 1, "investimento": 21500.23, "leads": 833.0, "ne": 1666.0, "wt": 3569.5, "cpl": 25.810, "cpne": 12.905, "cpwt": 6.023},
+        {"mc": 2, "investimento": 20994.01, "leads": 1566.0, "ne": 2531.0, "wt": 4172.94, "cpl": 13.406, "cpne": 8.294, "cpwt": 5.030},
+        {"mc": 3, "investimento": 26701.1, "leads": 1822.0, "ne": 2522.0, "wt": 4922.71, "cpl": 14.654, "cpne": 10.587, "cpwt": 5.424},
+        {"mc": 4, "investimento": 30171.4, "leads": 1634.0, "ne": 2674.0, "wt": 5276.06, "cpl": 18.464, "cpne": 11.283, "cpwt": 5.718},
+        {"mc": 5, "investimento": 31207.94, "leads": 957.0, "ne": 2640.0, "wt": 6003.86, "cpl": 32.610, "cpne": 11.821, "cpwt": 5.197},
+        {"mc": 6, "investimento": 29276.17, "leads": 1054.0, "ne": 1480.0, "wt": 4787.85, "cpl": 27.776, "cpne": 19.781, "cpwt": 6.114},
+        {"mc": 7, "investimento": 20027.49, "leads": 3.0, "ne": 2777.0, "wt": 11465.53, "cpl": 6675.83, "cpne": 7.211, "cpwt": 1.746},
+        {"mc": 8, "investimento": 26550.79, "leads": 680.0, "ne": 119.0, "wt": 326.72, "cpl": 39.045, "cpne": 223.115, "cpwt": 81.264}
+    ],
+    "Nov 24": [
+        {"mc": 1, "investimento": 9022.61, "leads": 802.0, "ne": 1876.0, "wt": 3416.66, "cpl": 11.250, "cpne": 4.809, "cpwt": 2.640},
+        {"mc": 2, "investimento": 21052.6, "leads": 1642.0, "ne": 2197.0, "wt": 3978.69, "cpl": 12.821, "cpne": 9.582, "cpwt": 5.291},
+        {"mc": 3, "investimento": 30320.12, "leads": 2189.0, "ne": 2159.0, "wt": 3810.66, "cpl": 13.851, "cpne": 14.043, "cpwt": 7.956},
+        {"mc": 4, "investimento": 50143.55, "leads": 1016.0, "ne": 2442.0, "wt": 5007.97, "cpl": 49.353, "cpne": 20.533, "cpwt": 10.012},
+        {"mc": 5, "investimento": 26328.66, "leads": 1416.0, "ne": 2206.0, "wt": 5009.59, "cpl": 18.593, "cpne": 11.935, "cpwt": 5.255},
+        {"mc": 6, "investimento": 58009.82, "leads": 1594.0, "ne": 3070.0, "wt": 6125.38, "cpl": 36.392, "cpne": 18.895, "cpwt": 9.470},
+        {"mc": 7, "investimento": 61959.96, "leads": 1661.0, "ne": 2755.0, "wt": 5100.99, "cpl": 37.302, "cpne": 22.490, "cpwt": 12.146},
+        {"mc": 8, "investimento": 33425.5, "leads": 288.0, "ne": 4052.0, "wt": 9968.24, "cpl": 116.060, "cpne": 8.249, "cpwt": 3.353},
+        {"mc": 9, "investimento": 29630.95, "leads": 581.0, "ne": 993.0, "wt": 2776.49, "cpl": 50.999, "cpne": 29.839, "cpwt": 10.672}
+    ],
+    "Jan 25": [
+        {"mc": 1, "investimento": 22920.31, "leads": 1391.0, "ne": 1628.0, "wt": 3828.87, "cpl": 16.477, "cpne": 14.078, "cpwt": 5.986},
+        {"mc": 2, "investimento": 26777.01, "leads": 1290.0, "ne": 1512.0, "wt": 4245.74, "cpl": 20.757, "cpne": 17.709, "cpwt": 6.306},
+        {"mc": 3, "investimento": 32760.53, "leads": 980.0, "ne": 1586.0, "wt": 3375.47, "cpl": 33.429, "cpne": 20.656, "cpwt": 9.705},
+        {"mc": 4, "investimento": 50349.23, "leads": 1963.0, "ne": 1931.0, "wt": 3918.67, "cpl": 25.649, "cpne": 26.074, "cpwt": 12.848},
+        {"mc": 5, "investimento": 60074.4, "leads": 1313.0, "ne": 2275.0, "wt": 4391.48, "cpl": 45.753, "cpne": 26.406, "cpwt": 13.679},
+        {"mc": 6, "investimento": 71521.02, "leads": 2923.0, "ne": 1338.0, "wt": 2802.24, "cpl": 24.468, "cpne": 53.453, "cpwt": 25.522},
+        {"mc": 7, "investimento": 55883.31, "leads": 1936.0, "ne": 1520.0, "wt": 3233.14, "cpl": 28.865, "cpne": 36.765, "cpwt": 17.284},
+        {"mc": 8, "investimento": 46760.42, "leads": 208.0, "ne": 3470.0, "wt": 9240.34, "cpl": 224.809, "cpne": 13.475, "cpwt": 5.060},
+        {"mc": 9, "investimento": 30398.61, "leads": 523.0, "ne": 907.0, "wt": 2957.62, "cpl": 58.123, "cpne": 33.515, "cpwt": 10.278}
+    ],
+    "Mar 25": [
+        {"mc": 1, "investimento": 8697.59, "leads": 658.0, "ne": 1120.0, "wt": 3248.42, "cpl": 13.218, "cpne": 7.765, "cpwt": 2.677},
+        {"mc": 2, "investimento": 19270.68, "leads": 1245.0, "ne": 1661.0, "wt": 3400.01, "cpl": 15.478, "cpne": 11.601, "cpwt": 5.667},
+        {"mc": 3, "investimento": 39398.62, "leads": 1855.0, "ne": 1910.0, "wt": 4046.97, "cpl": 21.239, "cpne": 20.627, "cpwt": 9.735},
+        {"mc": 4, "investimento": 41838.92, "leads": 1711.0, "ne": 2542.0, "wt": 6113.06, "cpl": 24.452, "cpne": 16.459, "cpwt": 6.844},
+        {"mc": 5, "investimento": 49764.07, "leads": 1277.0, "ne": 1882.0, "wt": 4316.95, "cpl": 38.969, "cpne": 26.442, "cpwt": 11.527},
+        {"mc": 6, "investimento": 64629.9, "leads": 1060.0, "ne": 1488.0, "wt": 3216.23, "cpl": 60.971, "cpne": 43.434, "cpwt": 20.094},
+        {"mc": 7, "investimento": 43295.57, "leads": 405.0, "ne": 1149.0, "wt": 2139.83, "cpl": 106.902, "cpne": 37.681, "cpwt": 20.233},
+        {"mc": 8, "investimento": 24816.59, "leads": 7.0, "ne": 2010.0, "wt": 4094.19, "cpl": 3545.227, "cpne": 12.346, "cpwt": 6.061},
+        {"mc": 9, "investimento": 14250.54, "leads": 0.0, "ne": 555.0, "wt": 1341.57, "cpl": 0, "cpne": 25.676, "cpwt": 10.622}
+    ],
+    "Mai 25": [
+        {"mc": 1, "investimento": 14349.96, "leads": 0.0, "ne": 1007.0, "wt": 2844.3, "cpl": 0, "cpne": 14.250, "cpwt": 5.045},
+        {"mc": 2, "investimento": 20924.92, "leads": 0.0, "ne": 1218.0, "wt": 3569.93, "cpl": 0, "cpne": 17.179, "cpwt": 5.861},
+        {"mc": 3, "investimento": 31594.25, "leads": 0.0, "ne": 875.0, "wt": 2314.24, "cpl": 0, "cpne": 36.107, "cpwt": 13.652},
+        {"mc": 4, "investimento": 32615.32, "leads": 0.0, "ne": 909.0, "wt": 1998.18, "cpl": 0, "cpne": 35.880, "cpwt": 16.322},
+        {"mc": 5, "investimento": 30832.49, "leads": 0.0, "ne": 1449.0, "wt": 2863.54, "cpl": 0, "cpne": 21.278, "cpwt": 10.767},
+        {"mc": 6, "investimento": 30480.82, "leads": 0.0, "ne": 884.0, "wt": 1957.15, "cpl": 0, "cpne": 34.480, "cpwt": 15.574},
+        {"mc": 7, "investimento": 21409.62, "leads": 0.0, "ne": 893.0, "wt": 1588.74, "cpl": 0, "cpne": 23.974, "cpwt": 13.475},
+        {"mc": 8, "investimento": 15968.28, "leads": 0.0, "ne": 1502.0, "wt": 2953.3, "cpl": 0, "cpne": 10.631, "cpwt": 5.406},
+        {"mc": 9, "investimento": 14694.15, "leads": 0.0, "ne": 296.0, "wt": 988.15, "cpl": 0, "cpne": 49.642, "cpwt": 14.870}
+    ],
+    "Jul 25": [
+        {"mc": 1, "investimento": 16350.81, "leads": 0.0, "ne": 442.0, "wt": 947.3, "cpl": 0, "cpne": 36.992, "cpwt": 17.260},
+        {"mc": 2, "investimento": 23651.06, "leads": 0.0, "ne": 467.0, "wt": 1008.45, "cpl": 0, "cpne": 50.644, "cpwt": 23.452},
+        {"mc": 3, "investimento": 35248.43, "leads": 0.0, "ne": 1172.0, "wt": 3383.03, "cpl": 0, "cpne": 30.075, "cpwt": 10.419},
+        {"mc": 4, "investimento": 41005.21, "leads": 0.0, "ne": 1073.0, "wt": 2462.04, "cpl": 0, "cpne": 38.215, "cpwt": 16.654},
+        {"mc": 5, "investimento": 45815.38, "leads": 0.0, "ne": 1462.0, "wt": 3990.57, "cpl": 0, "cpne": 31.337, "cpwt": 11.480},
+        {"mc": 6, "investimento": 61306.83, "leads": 0.0, "ne": 1147.0, "wt": 2696.85, "cpl": 0, "cpne": 53.449, "cpwt": 22.732},
+        {"mc": 7, "investimento": 59513.5, "leads": 0.0, "ne": 861.0, "wt": 1497.58, "cpl": 0, "cpne": 69.121, "cpwt": 39.739},
+        {"mc": 8, "investimento": 30394.11, "leads": 0.0, "ne": 1422.0, "wt": 3148.42, "cpl": 0, "cpne": 21.374, "cpwt": 9.653},
+        {"mc": 9, "investimento": 21648.89, "leads": 0.0, "ne": 585.0, "wt": 1233.04, "cpl": 0, "cpne": 37.006, "cpwt": 17.557}
+    ],
+    "Set 25": [
+        {"mc": 1, "investimento": 18750.67, "leads": 0.0, "ne": 2062.0, "wt": 2185.19, "cpl": 0, "cpne": 9.093, "cpwt": 8.580},
+        {"mc": 2, "investimento": 35343.03, "leads": 0.0, "ne": 1031.0, "wt": 1857.65, "cpl": 0, "cpne": 34.280, "cpwt": 19.025},
+        {"mc": 3, "investimento": 56837.23, "leads": 0.0, "ne": 1197.0, "wt": 1903.01, "cpl": 0, "cpne": 47.483, "cpwt": 29.867},
+        {"mc": 4, "investimento": 90865.67, "leads": 0.0, "ne": 1169.0, "wt": 2317.65, "cpl": 0, "cpne": 77.729, "cpwt": 39.205}
+    ]
+}
+
 
 # ── CONFIGURAÇÃO DA PÁGINA ──────────────────────────────
 st.set_page_config(
@@ -305,58 +429,6 @@ def calc_stats(grupos):
         ga=at[0]["nome"] if at else "-"
     )
 
-# ── DADOS DO HISTÓRICO (PLANILHA DE MÉTRICAS DOS MICROCICLOS) ──
-@st.cache_data(ttl=3600, show_spinner=False)
-def get_past_launches():
-    url = "https://docs.google.com/spreadsheets/d/1JO5nWkX7NB58tYFDmATL2bO13bjDni62xXdHHRRlDlM/gviz/tq?tqx=out:csv&sheet=ANÁLISE"
-    try:
-        r = requests.get(url, timeout=15)
-        r.raise_for_status()
-        df = pd.read_csv(StringIO(r.text))
-    except:
-        return {}
-
-    launches_order = [
-        "Nov 23", "Jan 24", "Mar 24", "Mai 24", "Jul 24", "Set 24", 
-        "Nov 24", "Jan 25", "Mar 25", "Mai 25", "Jul 25", "Set 25", "Out 25"
-    ]
-    
-    past_data = {}
-    launch_idx = -1
-    
-    for _, row in df.iterrows():
-        dt_inicio = str(row.get('DATA INICIO T', '')).strip().upper()
-        
-        # Identifica a virada de um novo lançamento verificando "S1" no nome
-        if dt_inicio.startswith('(S1)') or dt_inicio == 'S1':
-            launch_idx += 1
-            if launch_idx < len(launches_order):
-                past_data[launches_order[launch_idx]] = []
-                
-        if launch_idx >= 0 and launch_idx < len(launches_order):
-            inv = safe_float(get_val(row, 'Investimento (total)'))
-            leads = safe_float(get_val(row, ['leads lvp', 'Leads Totais', 'Leads LVP (BANCO)']))
-            ne = safe_float(get_val(row, ['nE', 'Novos Espectadores']))
-            wt = safe_float(get_val(row, 'Watchtime'))
-            
-            # Pula linhas zeradas para não sujar o painel com MC fantasma
-            if inv == 0 and leads == 0 and ne == 0:
-                continue
-                
-            mc_num = len(past_data[launches_order[launch_idx]]) + 1
-            past_data[launches_order[launch_idx]].append({
-                'mc': mc_num,
-                'investimento': inv,
-                'leads': leads,
-                'ne': ne,
-                'wt': wt,
-                'cpl': inv / leads if leads > 0 else 0,
-                'cpne': inv / ne if ne > 0 else 0,
-                'cpwt': inv / wt if wt > 0 else 0
-            })
-            
-    return past_data
-
 def aggregate_launch(mc_list):
     if not mc_list: return {'investimento':0, 'leads':0, 'ne':0, 'wt':0, 'cpl':0, 'cpne':0, 'cpwt':0}
     t_inv = sum(x['investimento'] for x in mc_list)
@@ -394,7 +466,7 @@ ID_DA_PLANILHA = "17WFm9kfssn7I0YhMIaZ3_6bEBHVVdJlD"
 if "sheet_id" not in st.session_state: 
     st.session_state.sheet_id = ID_DA_PLANILHA
 
-# ── CARREGAMENTO DE DADOS ───────────────────────────────
+# ── CARREGAMENTO DE DADOS (PLANILHA ATUAL) ──────────────
 @st.cache_data(ttl=120, show_spinner=False)
 def fetch_all(sid):
     sem_df, liv_df = load_data(sid)
@@ -402,14 +474,14 @@ def fetch_all(sid):
     return process_semanal(sem_df), process_lives(liv_df)
 
 sid = st.session_state.get("sheet_id", "")
-with st.spinner("Sincronizando com Google Sheets..."):
+with st.spinner("Sincronizando Lançamento Atual..."):
     semanal, lives = fetch_all(sid)
 
 if semanal is None:
-    st.error("Erro ao conectar com a planilha. Verifique as permissões de acesso do link.")
+    st.error("Erro ao conectar com a planilha do Lançamento Março 26.")
     st.stop()
 
-# ── CÁLCULOS GERAIS DO LANÇAMENTO ATUAL ──────────────────
+# ── CÁLCULOS GERAIS (MARÇO 26) ──────────────────────────
 sem_map = {s["semana"]: s for s in semanal}
 active_weeks = sorted([s for s, data in sem_map.items() if data.get("investimento", 0) > 0])
 
@@ -469,8 +541,8 @@ total_cliques_all = sum(w["tc"] for w in weeks_data)
 total_pico_all = sum(w["pico"] for w in weeks_data)
 tv_all = sum(w["vt"] for w in weeks_data)
 total_novos_all = sum(w["tne"] for w in weeks_data)
-cpne_global = ti / total_novos_all if total_novos_all > 0 else 0
 
+cpne_global = ti / total_novos_all if total_novos_all > 0 else 0
 
 # ── CABEÇALHO PRINCIPAL E BOTÃO DE ATUALIZAR ────────────
 h_col1, h_col2 = st.columns([5, 1])
@@ -489,7 +561,6 @@ with h_col2:
         st.rerun()
 
 st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
-
 
 # ── NAVEGAÇÃO ESTRUTURAL DAS ABAS MAIORES ───────────────
 tab_atual, tab_anteriores, tab_comp = st.tabs(["🚀 Março 26 (Atual)", "⏪ Lançamentos Anteriores", "⚖️ Comparativo de Microciclos"])
@@ -518,7 +589,6 @@ with tab_atual:
 
     st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
 
-    # --- TELA VISÃO GERAL ---
     if st.session_state.sel_week is None:
         st.markdown('<div class="week-header"><div class="week-title-text"><i class="fa-solid fa-chart-line" style="color:var(--primary-color); margin-right:8px"></i> Visão Geral do Lançamento</div><div class="week-subtitle">Acumulado de todos os microciclos</div></div>', unsafe_allow_html=True)
 
@@ -581,7 +651,6 @@ with tab_atual:
                     st.session_state.sel_week = w["sn"]
                     st.rerun()
 
-    # --- TELA DETALHE DO MICROCICLO ---
     else:
         sw = st.session_state.sel_week
         w = next((w for w in weeks_data if w["sn"] == sw), None)
@@ -704,12 +773,14 @@ with tab_atual:
 # ════════════════════════════════════════════════════════
 with tab_anteriores:
     st.markdown("### ⏪ Dados Históricos de Lançamentos")
-    past_data = get_past_launches()
     
-    if past_data:
-        sel_l = st.selectbox("Escolha o Lançamento:", list(past_data.keys()))
+    # Remove as opções vazias para não sujar a interface
+    valid_launches = {k: v for k, v in PAST_DATA.items() if len(v) > 0}
+    
+    if valid_launches:
+        sel_l = st.selectbox("Escolha o Lançamento:", list(valid_launches.keys()))
         
-        mcs_l = past_data[sel_l]
+        mcs_l = valid_launches[sel_l]
         mc_options = ["Geral"] + [f"MC {m['mc']}" for m in mcs_l]
         
         st.markdown("<div style='margin-bottom: 12px'></div>", unsafe_allow_html=True)
@@ -737,7 +808,7 @@ with tab_anteriores:
         with c7: st.markdown(kpi_new_html("Custo por WT", fmtR(d_show['cpwt']), "icon-red", "fa-solid fa-chart-line"), unsafe_allow_html=True)
         with c8: st.markdown(kpi_new_html("Status", "Fechado", "icon-green", "fa-solid fa-check"), unsafe_allow_html=True)
     else:
-        st.info("Nenhum dado de lançamento passado encontrado ou a planilha antiga ainda está carregando.")
+        st.info("Nenhum dado de lançamento passado encontrado.")
 
 
 # ════════════════════════════════════════════════════════
@@ -747,15 +818,14 @@ with tab_comp:
     st.markdown("### ⚖️ Comparativo Lado a Lado")
     st.caption("Filtre até 3 cenários diferentes (seja o lançamento completo ou um microciclo específico) para comparar a eficiência da operação.")
     
-    # Prepara dicionario combinado (Histórico + Atual)
-    all_l = past_data.copy() if 'past_data' in locals() and past_data else {}
+    all_l = {k: v for k, v in PAST_DATA.items() if len(v) > 0}
     if weeks_data:
         mar26 = []
         for w in weeks_data:
             mar26.append({
                 'mc': w['sn'],
                 'investimento': w['inv'],
-                'leads': w['la'], # Lead Ads assumido como LVP
+                'leads': w['la'], 
                 'ne': w['tne'],
                 'wt': w['twt'],
                 'cpl': w['cpl'],
@@ -770,7 +840,7 @@ with tab_comp:
         
         l_keys = list(all_l.keys())
         def_1 = l_keys.index("Março 26 (Atual)") if "Março 26 (Atual)" in l_keys else 0
-        def_2 = l_keys.index("Out 25") if "Out 25" in l_keys else 0
+        def_2 = l_keys.index("Jul 25") if "Jul 25" in l_keys else 0 # Setup inteligente
         def_idx = [def_1, def_2, 0]
         
         for i in range(3):
@@ -800,7 +870,7 @@ with tab_comp:
                     
                     st.markdown(kpi_new_html("Investimento", fmtR(data_c['investimento']), "icon-red", "fa-solid fa-money-bill-wave"), unsafe_allow_html=True)
                     st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
-                    st.markdown(kpi_new_html("Leads", fmt(data_c['leads']), "icon-blue", "fa-solid fa-users"), unsafe_allow_html=True)
+                    st.markdown(kpi_new_html("Leads LVP", fmt(data_c['leads']), "icon-blue", "fa-solid fa-users"), unsafe_allow_html=True)
                     st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
                     st.markdown(kpi_new_html("CPL", fmtR(data_c['cpl']), "icon-orange", "fa-solid fa-coins"), unsafe_allow_html=True)
                     st.markdown("<div style='margin-bottom:8px'></div>", unsafe_allow_html=True)
